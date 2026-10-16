@@ -1,0 +1,12 @@
+---
+description: Ao encerrar o dia, desligar os serviços ECS; ao voltar a trabalhar, ligar de novo.
+alwaysApply: true
+---
+
+# Ligar / desligar ECS (custo)
+
+Mesmo cluster `plataforma-esporte` (`sa-east-1`). Ver a regra correspondente no back.
+
+- **Fim do dia:** `desired-count 0` em `plataforma-esporte-api` e `plataforma-esporte-front`. Não apagar ALB/ACM/ECR.
+- **Ligar o site:** `desired-count 1` nos dois; confirmar `https://www.participando.com.br` e `https://api.participando.com.br/health`.
+- ALBs **continuam cobrando** mesmo com tasks zeradas.
