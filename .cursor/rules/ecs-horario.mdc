@@ -1,12 +1,12 @@
 ---
-description: Ao encerrar o dia, desligar os serviços ECS; ao voltar a trabalhar, ligar de novo.
+description: Fim do dia desliga ECS e apaga ALBs; ao ligar, recria ALBs e pede CNAME no Registro.br.
 alwaysApply: true
 ---
 
-# Ligar / desligar ECS (custo)
+# Ligar / desligar (custo)
 
-Mesmo cluster `plataforma-esporte` (`sa-east-1`). Ver a regra correspondente no back.
+Detalhe operacional no back (`.cursor/rules/ecs-horario.mdc`). Resumo:
 
-- **Fim do dia:** `desired-count 0` em `plataforma-esporte-api` e `plataforma-esporte-front`. Não apagar ALB/ACM/ECR.
-- **Ligar o site:** `desired-count 1` nos dois; confirmar `https://www.participando.com.br` e `https://api.participando.com.br/health`.
-- ALBs **continuam cobrando** mesmo com tasks zeradas.
+- **Desligar:** `desired-count 0` nos serviços ECS **e apagar os 2 ALBs**. Não apagar ACM, ECR, TGs. Não mexer nos CNAMEs `_…` de validação ACM.
+- **Ligar:** recriar ALBs + HTTPS; usuário atualiza no Registro.br só `www` e `api` para os hostnames **novos**; depois `desired-count 1`.
+- Confirmar `https://www.participando.com.br` e `https://api.participando.com.br/health`.
