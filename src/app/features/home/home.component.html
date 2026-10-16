@@ -1,0 +1,26 @@
+<div class="app-page home">
+  <mat-card class="app-page-card home-card">
+    <mat-card-header>
+      <mat-card-title>Plataforma de eventos esportivos</mat-card-title>
+      <mat-card-subtitle>Inscrições para corrida, natação e mais</mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      <p>Gerencie eventos e inscrições com uma única conta.</p>
+    </mat-card-content>
+
+    <mat-card-actions>
+      <a mat-flat-button color="accent" routerLink="/e">Ver eventos públicos</a>
+      @if (auth.isAuthenticated()) {
+        <a mat-flat-button color="primary" [routerLink]="userHomeRoute">Minha área</a>
+      } @else {
+        <a mat-flat-button color="primary" routerLink="/auth/login" [queryParams]="{ returnUrl: userHomeRoute }">
+          Entrar
+        </a>
+        <a mat-stroked-button routerLink="/auth/cadastro" [queryParams]="{ returnUrl: userHomeRoute }">
+          Criar conta
+        </a>
+      }
+    </mat-card-actions>
+  </mat-card>
+</div>

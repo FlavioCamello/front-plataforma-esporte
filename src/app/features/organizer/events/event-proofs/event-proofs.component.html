@@ -1,0 +1,241 @@
+@if (loading()) {
+  <mat-card>
+    <mat-card-content>
+      <p>Carregando provas…</p>
+    </mat-card-content>
+  </mat-card>
+} @else if (!event() && errorMessage()) {
+  <mat-card class="gate">
+    <mat-card-content>
+      <p class="error" role="alert">{{ errorMessage() }}</p>
+      <a mat-button [routerLink]="homeRoute">Voltar ao início</a>
+    </mat-card-content>
+  </mat-card>
+} @else {
+  <mat-card>
+    <mat-card-header>
+      <mat-card-title>Provas e percursos</mat-card-title>
+      <mat-card-subtitle>
+        {{ event()?.name }} · {{ event()?.status }} · percursos, categorias e lotes de preço
+      </mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      @if (errorMessage()) {
+        <p class="error" role="alert">{{ errorMessage() }}</p>
+      }
+      @if (successMessage()) {
+        <p class="success" role="status">{{ successMessage() }}</p>
+      }
+      @if (publishErrors().length > 0) {
+        <div class="publish-errors" role="alert">
+          <strong>Ajustes necessários para publicar:</strong>
+          <ul>
+            @for (msg of publishErrors(); track msg) {
+              <li>{{ msg }}</li>
+            }
+          </ul>
+          <p class="hint">O rascunho já foi salvo — corrija os itens e clique em Publicar novamente.</p>
+        </div>
+      }
+
+      @if (isCancelled()) {
+        <p class="warn">Este evento foi cancelado e não pode ser editado.</p>
+      }
+      @if (isClosed()) {
+        <p class="hint">Evento encerrado: provas não podem ser alteradas.</p>
+      }
+
+      @if (eventCategories().length === 0) {
+        <p class="warn">
+          Cadastre ao menos uma categoria na etapa anterior antes de criar provas.
+          <a mat-button [routerLink]="continuePath()">Voltar às categorias</a>
+        </p>
+      }
+
+      <form [formGroup]="form">
+        <div class="section-actions">
+          @if (canEdit()) {
+            <button
+              mat-stroked-button
+              type="button"
+              (click)="addProof()"
+              [disabled]="eventCategories().length === 0"
+            >
+              <mat-icon>add</mat-icon>
+              Adicionar prova
+            </button>
+          }
+        </div>
+
+        <div formArrayName="proofs">
+          @for (ctrl of proofs.controls; track $index; let i = $index) {
+            <div class="proof" [formGroupName]="i">
+              <h3>Prova {{ i + 1 }}</h3>
+              <div class="grid">
+                <mat-form-field appearance="outline">
+                  <mat-label>Nome da prova</mat-label>
+                  <input matInput formControlName="name" placeholder="Ex.: Percurso 10K" />
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>Vagas</mat-label>
+                  <input matInput type="number" formControlName="capacity" min="0" />
+                  <mat-hint>Limite desta prova; deixe vazio se ilimitado</mat-hint>
+                </mat-form-field>
+              </div>
+
+              <div class="image-block">
+                <p class="field-label">Arte / mapa do percurso</p>
+                <p class="section-help">
+                  Envie o mapa completo (JPEG, PNG ou WEBP, até 5 MB). Preferência paisagem. Na
+                  página pública a imagem aparece inteira (sem corte) e o atleta pode ampliar com
+                  um toque.
+                </p>
+                <div class="image-row">
+                  <div class="image-picker">
+                    <label class="file-button">
+                      <mat-icon>upload</mat-icon>
+                      Escolher imagem
+                      <input
+                        type="file"
+                        accept="image/*"
+                        (change)="onRouteImageSelected(i, $event)"
+                        [disabled]="!canEdit()"
+                        hidden
+                      />
+                    </label>
+                    @if (routeImageFileNames()[i]) {
+                      <span class="file-name"
+                        >{{ routeImageFileNames()[i] }} (local — ainda não enviado)</span
+                      >
+                    } @else if (ctrl.get('routeImageUrl')?.value) {
+                      <span class="file-name">Imagem já salva na prova</span>
+                    } @else {
+                      <span class="file-name muted">Nenhuma imagem</span>
+                    }
+                    @if (routeImageDisplay(i) && canEdit()) {
+                      <button mat-button type="button" color="warn" (click)="clearRouteImage(i)">
+                        Remover imagem
+                      </button>
+                    }
+                  </div>
+                  @if (routeImageDisplay(i); as img) {
+                    <img [src]="img" alt="Prévia do percurso" class="route-preview" />
+                  }
+                </div>
+              </div>
+
+              <p class="field-label">Categorias vinculadas</p>
+              <p class="section-help">
+                Por padrão, uma prova nova já vem com todas as categorias do evento.
+              </p>
+              @if (canEdit()) {
+                <div class="cat-actions">
+                  <button mat-button type="button" (click)="selectAllCategories(i)">
+                    Selecionar todas
+                  </button>
+                  <button mat-button type="button" (click)="clearCategories(i)">Limpar</button>
+                </div>
+              }
+              <div class="categories">
+                @for (cat of eventCategories(); track cat.id) {
+                  <mat-checkbox
+                    [checked]="isCategorySelected(i, cat.id)"
+                    [disabled]="!canEdit()"
+                    (change)="toggleCategory(i, cat.id, $event.checked)"
+                  >
+                    {{ cat.name }}
+                  </mat-checkbox>
+                } @empty {
+                  <p class="hint">Nenhuma categoria no evento.</p>
+                }
+              </div>
+
+              <div class="lots-block" formArrayName="lots">
+                <p class="field-label">Lotes de preço desta prova</p>
+                <p class="section-help">
+                  Cada percurso tem seus próprios lotes (nome, preço e vigência). Na inscrição, o
+                  atleta paga o lote vigente <strong>desta prova</strong>. Use preço 0 para
+                  gratuito.
+                </p>
+                @if (canEdit()) {
+                  <div class="cat-actions">
+                    <button mat-stroked-button type="button" (click)="addLot(i)">
+                      <mat-icon>add</mat-icon>
+                      Adicionar lote
+                    </button>
+                  </div>
+                }
+                @for (lotCtrl of lotsOf(i).controls; track $index; let j = $index) {
+                  <div class="lot" [formGroupName]="j">
+                    <div class="grid">
+                      <mat-form-field appearance="outline">
+                        <mat-label>Nome</mat-label>
+                        <input matInput formControlName="name" placeholder="Ex.: 1º lote" />
+                      </mat-form-field>
+                      <mat-form-field appearance="outline">
+                        <mat-label>Preço (R$)</mat-label>
+                        <input matInput type="number" formControlName="price" min="0" step="0.01" />
+                      </mat-form-field>
+                      <mat-form-field appearance="outline">
+                        <mat-label>Início do lote</mat-label>
+                        <input matInput type="datetime-local" formControlName="startsAtLocal" />
+                      </mat-form-field>
+                      <mat-form-field appearance="outline">
+                        <mat-label>Fim do lote</mat-label>
+                        <input matInput type="datetime-local" formControlName="endsAtLocal" />
+                      </mat-form-field>
+                    </div>
+                    @if (canEdit()) {
+                      <button mat-button color="warn" type="button" (click)="removeLot(i, j)">
+                        Remover lote
+                      </button>
+                    }
+                  </div>
+                } @empty {
+                  <p class="hint">
+                    Nenhum lote nesta prova. Sem lote vigente, a inscrição será bloqueada na
+                    publicação/inscrição.
+                  </p>
+                }
+              </div>
+
+              @if (canEdit()) {
+                <button mat-button color="warn" type="button" (click)="removeProof(i)">
+                  Remover prova
+                </button>
+              }
+            </div>
+          } @empty {
+            <p class="hint">Nenhuma prova ainda. Adicione a primeira prova do evento.</p>
+          }
+        </div>
+
+        <div class="actions">
+          <button mat-button type="button" (click)="back()" [disabled]="saving() || publishing()">
+            Voltar
+          </button>
+          <button
+            mat-stroked-button
+            color="primary"
+            type="button"
+            (click)="save()"
+            [disabled]="saving() || publishing() || !canEdit()"
+          >
+            {{ saving() && !publishing() ? 'Salvando…' : 'Salvar como rascunho' }}
+          </button>
+          <button
+            mat-flat-button
+            color="accent"
+            type="button"
+            (click)="publish()"
+            [disabled]="saving() || publishing() || !canEdit()"
+          >
+            <mat-icon>publish</mat-icon>
+            {{ publishing() ? 'Publicando…' : 'Publicar' }}
+          </button>
+        </div>
+      </form>
+    </mat-card-content>
+  </mat-card>
+}

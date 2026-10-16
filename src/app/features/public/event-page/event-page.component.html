@@ -1,0 +1,335 @@
+@if (loading()) {
+  <div class="page loading-state">
+    <p>Carregando evento…</p>
+  </div>
+} @else if (errorMessage() || !event()) {
+  <div class="page loading-state">
+    <p class="err">{{ errorMessage() || 'Evento não encontrado.' }}</p>
+    <a routerLink="/e">Ver eventos</a>
+  </div>
+} @else {
+  <div class="page">
+    <header class="topbar">
+      <a routerLink="/e" class="back">← Eventos</a>
+      <div class="topbar-right">
+        <span class="org">{{ event()!.organizerName }}</span>
+        @if (isLoggedIn()) {
+          <a [routerLink]="homeRoute" class="area-link">{{ areaLabel() }}</a>
+        } @else {
+          <a
+            routerLink="/auth/login"
+            class="area-link"
+            [queryParams]="{ returnUrl: '/e/' + event()!.slug }"
+            >Entrar</a
+          >
+        }
+      </div>
+    </header>
+
+    <section class="hero" [style.background-image]="'url(' + bannerUrl() + ')'">
+      <div class="hero-shade">
+        <p class="eyebrow">
+          {{ sportLabel(event()!.sportType) }}
+          @if (event()!.registrationOpen) {
+            <span class="pill open">Inscrições abertas</span>
+          } @else {
+            <span class="pill closed">Inscrições encerradas</span>
+          }
+        </p>
+        <h1>{{ event()!.name }}</h1>
+        <p class="hero-sub">
+          @if (event()!.startsAt) {
+            {{ event()!.startsAt | date: "EEEE, d 'de' MMMM '·' HH:mm" }}
+          }
+          @if (event()!.venueName) {
+            <span> · {{ event()!.venueName }}</span>
+          }
+        </p>
+      </div>
+    </section>
+
+    <main class="content">
+      <section class="block">
+        <h2>Sobre</h2>
+        <p class="body-text">{{ event()!.description || 'Sem descrição.' }}</p>
+      </section>
+
+      <section class="block facts">
+        <h2>Informações</h2>
+        <dl>
+          <div>
+            <dt>Local</dt>
+            <dd>
+              <strong>{{ event()!.venueName || '—' }}</strong>
+              @if (addressLine()) {
+                <span>{{ addressLine() }}</span>
+              }
+            </dd>
+          </div>
+          <div>
+            <dt>Inscrições até</dt>
+            <dd>
+              @if (event()!.registrationClosesAt) {
+                {{ event()!.registrationClosesAt | date: 'dd/MM/yyyy HH:mm' }}
+              } @else {
+                —
+              }
+            </dd>
+          </div>
+        </dl>
+      </section>
+
+      @if (event()!.categories.length) {
+        <section class="block">
+          <h2>Categorias</h2>
+          <ul class="chips">
+            @for (cat of event()!.categories; track cat.id) {
+              <li>
+                <strong>{{ cat.name }}</strong>
+                <span
+                  >{{ genderLabel(cat.gender)
+                  }}{{
+                    cat.minAge != null || cat.maxAge != null
+                      ? ' · ' + (cat.minAge ?? '?') + '–' + (cat.maxAge ?? '?') + ' anos'
+                      : ''
+                  }}</span
+                >
+              </li>
+            }
+          </ul>
+        </section>
+      }
+
+      @if (event()!.proofs.length) {
+        <section class="block">
+          <h2>Provas e percursos</h2>
+          <div class="proofs">
+            @for (proof of event()!.proofs; track proof.id) {
+              <article class="proof">
+                <h3>{{ proof.name }}</h3>
+                @if (proof.capacity != null) {
+                  <p class="muted">{{ proof.capacity }} vagas</p>
+                }
+                @if (proof.categoryIds.length) {
+                  <p class="muted">Categorias: {{ categoryNames(proof.categoryIds) }}</p>
+                }
+                @if (proof.lots.length) {
+                  <ul class="rows proof-lots">
+                    @for (lot of proof.lots; track lot.id) {
+                      <li>
+                        <div>
+                          <strong>{{ lot.name }}</strong>
+                          <span class="muted"
+                            >{{ lot.startsAt | date: 'dd/MM' }} –
+                            {{ lot.endsAt | date: 'dd/MM' }}</span
+                          >
+                        </div>
+                        <em>{{ lot.price | currency: 'BRL' }}</em>
+                      </li>
+                    }
+                  </ul>
+                }
+                @if (proof.routeImageUrl) {
+                  <figure class="route-map">
+                    <button
+                      type="button"
+                      class="route-map-btn"
+                      (click)="openRouteLightbox(proof.routeImageUrl!, 'Mapa — ' + proof.name)"
+                      [attr.aria-label]="'Ampliar mapa de ' + proof.name"
+                    >
+                      <img
+                        [src]="proof.routeImageUrl"
+                        [alt]="'Mapa — ' + proof.name"
+                        loading="lazy"
+                      />
+                      <span class="route-map-hint">Toque para ampliar</span>
+                    </button>
+                  </figure>
+                }
+              </article>
+            }
+          </div>
+        </section>
+      }
+
+      @if (event()!.modules.route.enabled && event()!.modules.route.description) {
+        <section class="block">
+          <h2>Percurso</h2>
+          <p class="body-text">{{ event()!.modules.route.description }}</p>
+        </section>
+      }
+
+      @if (event()!.modules.athleteKit.enabled) {
+        <section class="block">
+          <h2>Kit do atleta</h2>
+          <ul class="bullets">
+            @for (item of event()!.modules.athleteKit.items; track item) {
+              <li>{{ item }}</li>
+            }
+          </ul>
+          @if (event()!.modules.athleteKit.extrasNote) {
+            <p class="muted">{{ event()!.modules.athleteKit.extrasNote }}</p>
+          }
+        </section>
+      }
+
+      @if (event()!.modules.shirtSizeChart.enabled) {
+        <section class="block">
+          <h2>Tabela de camiseta</h2>
+          @if (event()!.modules.shirtSizeChart.measurementHint) {
+            <p class="muted">{{ event()!.modules.shirtSizeChart.measurementHint }}</p>
+          }
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Tam.</th>
+                  <th>Largura</th>
+                  <th>Altura</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (size of event()!.modules.shirtSizeChart.sizes; track size.label) {
+                  <tr>
+                    <td>{{ size.label }}</td>
+                    <td>{{ size.widthCm ?? '—' }} cm</td>
+                    <td>{{ size.heightCm ?? '—' }} cm</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+      }
+
+      @if (event()!.modules.kitPickup.enabled && event()!.modules.kitPickup.description) {
+        <section class="block">
+          <h2>Retirada do kit</h2>
+          <p class="body-text">{{ event()!.modules.kitPickup.description }}</p>
+        </section>
+      }
+
+      @if (event()!.regulationText || event()!.regulationUrl) {
+        <section class="block">
+          <h2>Regulamento</h2>
+          @if (event()!.regulationText) {
+            <p class="body-text">{{ event()!.regulationText }}</p>
+          }
+          @if (event()!.regulationUrl) {
+            <a class="ext" [href]="event()!.regulationUrl" target="_blank" rel="noopener"
+              >Abrir regulamento (PDF/link)</a
+            >
+          }
+        </section>
+      }
+
+      @for (section of event()!.customSections ?? []; track section.id) {
+        <section class="block">
+          <h2>{{ section.title }}</h2>
+          <p class="body-text">{{ section.content }}</p>
+        </section>
+      }
+
+      <section class="block">
+        <h2>Contato</h2>
+        <div class="contact-grid">
+          @if (event()!.contactEmail) {
+            <a class="contact-card email" [href]="'mailto:' + event()!.contactEmail">
+              <span class="contact-ico" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <rect x="3" y="5" width="18" height="14" rx="2.5" />
+                  <path d="m3.5 7 8.5 6 8.5-6" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </span>
+              <span class="contact-text">
+                <small>E-mail</small>
+                <strong>{{ event()!.contactEmail }}</strong>
+              </span>
+            </a>
+          }
+          @if (event()!.contactPhone) {
+            <a class="contact-card" [href]="'tel:' + event()!.contactPhone">
+              <span class="contact-ico" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path
+                    d="M6.5 3.5c.7 0 1.3.5 1.5 1.2l.8 3a1.6 1.6 0 0 1-.45 1.6l-1.3 1.2a12 12 0 0 0 4.9 4.9l1.2-1.3a1.6 1.6 0 0 1 1.6-.45l3 .8c.7.2 1.2.8 1.2 1.5v2.3c0 .9-.75 1.65-1.65 1.55C10.6 20.2 3.8 13.4 3 4.65 2.9 3.75 3.65 3 4.55 3H6.5Z"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </span>
+              <span class="contact-text">
+                <small>Telefone</small>
+                <strong>{{ event()!.contactPhone }}</strong>
+              </span>
+            </a>
+          }
+          @if (event()!.modules.socialLinks.enabled && event()!.modules.socialLinks.websiteUrl) {
+            <a
+              class="contact-card"
+              [href]="event()!.modules.socialLinks.websiteUrl!"
+              target="_blank"
+              rel="noopener"
+            >
+              <span class="contact-ico" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M3 12h18M12 3c2.5 2.5 2.5 15 0 18M12 3c-2.5 2.5-2.5 15 0 18" />
+                </svg>
+              </span>
+              <span class="contact-text">
+                <small>Site</small>
+                <strong>Acessar site</strong>
+              </span>
+            </a>
+          }
+          @if (event()!.modules.socialLinks.enabled && event()!.modules.socialLinks.instagramUrl) {
+            <a
+              class="contact-card instagram"
+              [href]="event()!.modules.socialLinks.instagramUrl!"
+              target="_blank"
+              rel="noopener"
+            >
+              <span class="contact-ico" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <rect x="3.5" y="3.5" width="17" height="17" rx="5" />
+                  <circle cx="12" cy="12" r="4" />
+                  <circle cx="17.2" cy="6.8" r="1.1" fill="currentColor" stroke="none" />
+                </svg>
+              </span>
+              <span class="contact-text">
+                <small>Instagram</small>
+                <strong>Seguir</strong>
+              </span>
+            </a>
+          }
+        </div>
+      </section>
+    </main>
+
+    <div class="cta-bar">
+      <button
+        type="button"
+        class="cta"
+        [disabled]="!event()!.registrationOpen"
+        (click)="onCtaClick()"
+      >
+        {{ ctaLabel() }}
+      </button>
+    </div>
+  </div>
+}
+
+@if (lightbox(); as lb) {
+  <div
+    class="lightbox"
+    role="dialog"
+    aria-modal="true"
+    [attr.aria-label]="lb.alt"
+    (click)="closeLightbox()"
+  >
+    <button type="button" class="lightbox-close" (click)="closeLightbox()" aria-label="Fechar">
+      ×
+    </button>
+    <img [src]="lb.src" [alt]="lb.alt" (click)="$event.stopPropagation()" />
+  </div>
+}

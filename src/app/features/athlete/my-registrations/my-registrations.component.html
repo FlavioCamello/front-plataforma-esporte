@@ -1,0 +1,141 @@
+<div class="my-regs">
+  <header class="page-head">
+    <div>
+      <h1>Meus eventos</h1>
+      <p>Inscrições confirmadas, pendentes e histórico.</p>
+    </div>
+    <a mat-flat-button color="primary" [routerLink]="publicEventsRoute">Ver eventos</a>
+  </header>
+
+  @if (paymentBanner()) {
+    <p class="banner-info" role="status">{{ paymentBanner() }}</p>
+  }
+
+  @if (errorMessage()) {
+    <p class="banner-error" role="alert">{{ errorMessage() }}</p>
+  }
+
+  @if (loading()) {
+    <p class="muted">Carregando suas inscrições…</p>
+  } @else if (total() === 0) {
+    <mat-card class="empty">
+      <mat-card-content>
+        <p>Você ainda não se inscreveu em nenhum evento.</p>
+        <a mat-flat-button color="primary" [routerLink]="publicEventsRoute">Explorar vitrine</a>
+      </mat-card-content>
+    </mat-card>
+  } @else {
+    @if (upcoming().length > 0) {
+      <section class="group">
+        <h2>Próximos</h2>
+        <ul class="cards">
+          @for (item of upcoming(); track item.id) {
+            <li>
+              <mat-card class="reg-card">
+                <div
+                  class="thumb"
+                  [style.background-image]="
+                    'url(' +
+                    (item.bannerUrl ||
+                      'https://images.unsplash.com/photo-1452626038306-a576fb48b39f?auto=format&fit=crop&w=600&q=70') +
+                    ')'
+                  "
+                ></div>
+                <mat-card-content>
+                  <div class="row">
+                    <h3>{{ item.eventName || 'Evento' }}</h3>
+                    <span class="chip" [attr.data-status]="item.status">{{
+                      statusLabel(item.status)
+                    }}</span>
+                  </div>
+                  <p class="meta">
+                    @if (item.startsAt) {
+                      {{ item.startsAt | date: 'dd MMM yyyy · HH:mm' }}
+                    } @else {
+                      Data a confirmar
+                    }
+                    @if (item.venueName) {
+                      <span> · {{ item.venueName }}</span>
+                    }
+                  </p>
+                  <p class="meta">
+                    {{ item.proofName || 'Percurso' }}
+                    @if (item.categoryName) {
+                      <span> · {{ item.categoryName }}</span>
+                    }
+                    @if (item.shirtSize) {
+                      <span> · Camisa {{ item.shirtSize }}</span>
+                    }
+                  </p>
+                  <div class="actions">
+                    @if (item.status === 'Pending' && item.checkoutUrl) {
+                      <button mat-flat-button color="accent" type="button" (click)="resumeCheckout(item)">
+                        Pagar
+                      </button>
+                    }
+                    @if (eventLink(item); as link) {
+                      <a mat-stroked-button color="primary" [routerLink]="link">Ver página do evento</a>
+                    }
+                  </div>
+                </mat-card-content>
+              </mat-card>
+            </li>
+          }
+        </ul>
+      </section>
+    }
+
+    @if (past().length > 0) {
+      <section class="group">
+        <h2>Já participei / histórico</h2>
+        <ul class="cards">
+          @for (item of past(); track item.id) {
+            <li>
+              <mat-card class="reg-card">
+                <div
+                  class="thumb"
+                  [style.background-image]="
+                    'url(' +
+                    (item.bannerUrl ||
+                      'https://images.unsplash.com/photo-1452626038306-a576fb48b39f?auto=format&fit=crop&w=600&q=70') +
+                    ')'
+                  "
+                ></div>
+                <mat-card-content>
+                  <div class="row">
+                    <h3>{{ item.eventName || 'Evento' }}</h3>
+                    <span class="chip" [attr.data-status]="item.status">{{
+                      statusLabel(item.status)
+                    }}</span>
+                  </div>
+                  <p class="meta">
+                    @if (item.startsAt) {
+                      {{ item.startsAt | date: 'dd MMM yyyy · HH:mm' }}
+                    } @else {
+                      Data a confirmar
+                    }
+                    @if (item.venueName) {
+                      <span> · {{ item.venueName }}</span>
+                    }
+                  </p>
+                  <p class="meta">
+                    {{ item.proofName || 'Percurso' }}
+                    @if (item.categoryName) {
+                      <span> · {{ item.categoryName }}</span>
+                    }
+                    @if (item.shirtSize) {
+                      <span> · Camisa {{ item.shirtSize }}</span>
+                    }
+                  </p>
+                  @if (eventLink(item); as link) {
+                    <a mat-stroked-button color="primary" [routerLink]="link">Ver página do evento</a>
+                  }
+                </mat-card-content>
+              </mat-card>
+            </li>
+          }
+        </ul>
+      </section>
+    }
+  }
+</div>

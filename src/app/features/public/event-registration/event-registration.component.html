@@ -1,0 +1,126 @@
+<div class="reg-page">
+  <a class="back" [routerLink]="['/e', routeSlug]">← Voltar ao evento</a>
+
+  @if (loading()) {
+    <p class="muted">Carregando inscrição…</p>
+  } @else if (!event()) {
+    <mat-card>
+      <mat-card-content>
+        <p class="err">{{ errorMessage() || 'Evento não encontrado.' }}</p>
+        <a mat-stroked-button [routerLink]="publicEventsRoute">Ver eventos</a>
+      </mat-card-content>
+    </mat-card>
+  } @else {
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>Inscrição — {{ event()!.name }}</mat-card-title>
+        <mat-card-subtitle>
+          @if (event()!.startsAt) {
+            {{ event()!.startsAt | date: "d 'de' MMMM yyyy" }}
+          }
+          @if (event()!.venueName) {
+            · {{ event()!.venueName }}
+          }
+        </mat-card-subtitle>
+      </mat-card-header>
+
+      <mat-card-content>
+        @if (errorMessage()) {
+          <p class="err" role="alert">{{ errorMessage() }}</p>
+        }
+        @if (successMessage()) {
+          <p class="ok" role="status">{{ successMessage() }}</p>
+        }
+
+        @if (event()!.registrationOpen) {
+          <form class="form" [formGroup]="form" (ngSubmit)="submit()">
+            <mat-form-field appearance="outline" class="full">
+              <mat-label>Percurso</mat-label>
+              <mat-select formControlName="proofId">
+                @for (proof of event()!.proofs; track proof.id) {
+                  <mat-option [value]="proof.id">{{ proof.name }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="full">
+              <mat-label>Categoria</mat-label>
+              <mat-select formControlName="categoryId" [disabled]="!form.controls.proofId.value">
+                @for (cat of availableCategories(); track cat.id) {
+                  <mat-option [value]="cat.id">
+                    {{ cat.name }}
+                    @if (cat.discountPercent && cat.discountPercent > 0) {
+                      · {{ cat.discountPercent }}% OFF
+                    }
+                  </mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+
+            @if (priceInfo(); as price) {
+              <div class="price-box" role="status">
+                @if (!price.hasLot) {
+                  <p class="muted">Sem lote de inscrição vigente para este percurso.</p>
+                } @else if (price.finalPrice <= 0) {
+                  <span class="price-label">Valor da inscrição</span>
+                  <span class="price-free">Gratuita</span>
+                  @if (price.discountPercent > 0) {
+                    <span class="discount-tag">{{ price.discountPercent }}% de desconto aplicado</span>
+                  }
+                } @else {
+                  <span class="price-label">Valor da inscrição</span>
+                  <div class="price-values">
+                    @if (price.discountPercent > 0) {
+                      <span class="price-old">{{ price.basePrice | currency: 'BRL' }}</span>
+                    }
+                    <span class="price-final">{{ price.finalPrice | currency: 'BRL' }}</span>
+                  </div>
+                  @if (price.discountPercent > 0) {
+                    <span class="discount-tag">{{ price.discountPercent }}% de desconto da categoria</span>
+                  }
+                }
+              </div>
+            }
+
+            @if (shirtRequired()) {
+              <mat-form-field appearance="outline" class="full">
+                <mat-label>Tamanho da camiseta</mat-label>
+                <mat-select formControlName="shirtSize">
+                  @for (size of shirtSizes(); track size.label) {
+                    <mat-option [value]="size.label">{{ size.label }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            }
+
+            <div class="regulation">
+              @if (event()!.regulationUrl) {
+                <a [href]="event()!.regulationUrl!" target="_blank" rel="noopener noreferrer"
+                  >Ler regulamento</a
+                >
+              } @else if (event()!.regulationText) {
+                <details>
+                  <summary>Ler regulamento</summary>
+                  <p class="reg-text">{{ event()!.regulationText }}</p>
+                </details>
+              }
+              <mat-checkbox formControlName="regulationAccepted">
+                Li e aceito o regulamento do evento
+              </mat-checkbox>
+            </div>
+
+            <button
+              mat-flat-button
+              color="primary"
+              type="submit"
+              class="submit"
+              [disabled]="form.invalid || submitting()"
+            >
+              {{ submitting() ? 'Enviando…' : 'Confirmar inscrição' }}
+            </button>
+          </form>
+        }
+      </mat-card-content>
+    </mat-card>
+  }
+</div>

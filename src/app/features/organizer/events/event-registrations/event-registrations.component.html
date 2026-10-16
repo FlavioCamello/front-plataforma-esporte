@@ -1,0 +1,166 @@
+<div class="page">
+  <header class="page-head">
+    <div>
+      <a mat-button [routerLink]="myEventsRoute">
+        <mat-icon>arrow_back</mat-icon>
+        Meus eventos
+      </a>
+      <h1>Inscritos</h1>
+      @if (event(); as ev) {
+        <p class="subtitle">{{ ev.name }}</p>
+      }
+    </div>
+  </header>
+
+  @if (errorMessage()) {
+    <p class="error" role="alert">{{ errorMessage() }}</p>
+  }
+
+  @if (aggregates(); as agg) {
+    <section class="totals" aria-label="Totais do evento">
+      <div class="total-block">
+        <h2>Por status</h2>
+        <ul>
+          @for (s of agg.byStatus; track s.status) {
+            <li>
+              <span class="chip" [attr.data-status]="s.status">{{ statusLabel(s.status) }}</span>
+              <strong>{{ s.count }}</strong>
+            </li>
+          } @empty {
+            <li class="muted">Nenhuma inscrição ainda.</li>
+          }
+        </ul>
+      </div>
+      <div class="total-block">
+        <h2>Por percurso</h2>
+        <ul>
+          @for (p of agg.byProof; track p.proofId) {
+            <li>
+              <span>{{ p.proofName || p.proofId }}</span>
+              <strong>{{ p.count }}</strong>
+            </li>
+          } @empty {
+            <li class="muted">—</li>
+          }
+        </ul>
+      </div>
+    </section>
+  }
+
+  <mat-card>
+    <mat-card-content>
+      <form class="filters" [formGroup]="filters">
+        <mat-form-field appearance="outline" class="grow">
+          <mat-label>Buscar por nome</mat-label>
+          <input matInput formControlName="q" placeholder="Nome do atleta" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Percurso</mat-label>
+          <mat-select formControlName="proofId">
+            <mat-option value="">Todos</mat-option>
+            @for (proof of event()?.proofs ?? []; track proof.id) {
+              <mat-option [value]="proof.id">{{ proof.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Categoria</mat-label>
+          <mat-select formControlName="categoryId">
+            <mat-option value="">Todas</mat-option>
+            @for (cat of event()?.categories ?? []; track cat.id) {
+              <mat-option [value]="cat.id">{{ cat.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Status</mat-label>
+          <mat-select formControlName="status">
+            @for (opt of statusOptions; track opt.value) {
+              <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        @if (hasActiveFilters()) {
+          <button mat-stroked-button type="button" (click)="clearFilters()">Limpar</button>
+        }
+      </form>
+
+      @if (loading()) {
+        <p class="muted">Carregando inscritos…</p>
+      } @else if (items().length === 0) {
+        <p class="muted">Nenhum inscrito com esses filtros.</p>
+      } @else {
+        <p class="result-count">{{ total() }} inscrito(s)</p>
+        <div class="table-wrap">
+          <table mat-table [dataSource]="items()" class="regs-table">
+            <ng-container matColumnDef="athleteName">
+              <th mat-header-cell *matHeaderCellDef>Atleta</th>
+              <td mat-cell *matCellDef="let row">
+                <div class="name">{{ row.athleteName }}</div>
+                <div class="doc">{{ row.athleteDocument }}</div>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="status">
+              <th mat-header-cell *matHeaderCellDef>Status</th>
+              <td mat-cell *matCellDef="let row">
+                <span class="chip" [attr.data-status]="row.status">{{
+                  statusLabel(row.status)
+                }}</span>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="proofName">
+              <th mat-header-cell *matHeaderCellDef>Percurso</th>
+              <td mat-cell *matCellDef="let row">{{ row.proofName || row.proofId }}</td>
+            </ng-container>
+
+            <ng-container matColumnDef="categoryName">
+              <th mat-header-cell *matHeaderCellDef>Categoria</th>
+              <td mat-cell *matCellDef="let row">{{ row.categoryName || row.categoryId }}</td>
+            </ng-container>
+
+            <ng-container matColumnDef="shirtSize">
+              <th mat-header-cell *matHeaderCellDef>Camisa</th>
+              <td mat-cell *matCellDef="let row">{{ row.shirtSize || '—' }}</td>
+            </ng-container>
+
+            <ng-container matColumnDef="priceSnapshot">
+              <th mat-header-cell *matHeaderCellDef>Preço</th>
+              <td mat-cell *matCellDef="let row">
+                {{ row.priceSnapshot | currency: 'BRL' }}
+                @if (row.discountPercent && row.discountPercent > 0) {
+                  <span class="discount-badge">−{{ row.discountPercent }}%</span>
+                }
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="athletePhone">
+              <th mat-header-cell *matHeaderCellDef>Telefone</th>
+              <td mat-cell *matCellDef="let row">{{ row.athletePhone || '—' }}</td>
+            </ng-container>
+
+            <ng-container matColumnDef="athleteEmail">
+              <th mat-header-cell *matHeaderCellDef>E-mail</th>
+              <td mat-cell *matCellDef="let row">{{ row.athleteEmail }}</td>
+            </ng-container>
+
+            <ng-container matColumnDef="createdAt">
+              <th mat-header-cell *matHeaderCellDef>Inscrito em</th>
+              <td mat-cell *matCellDef="let row">
+                {{ row.createdAt | date: 'dd/MM/yyyy HH:mm' }}
+              </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+          </table>
+        </div>
+      }
+    </mat-card-content>
+  </mat-card>
+</div>

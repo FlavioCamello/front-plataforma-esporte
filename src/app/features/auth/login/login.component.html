@@ -1,0 +1,119 @@
+<div class="app-page login-page">
+  <mat-card class="app-page-card login-card">
+    <mat-card-header>
+      <mat-card-title>Entrar na plataforma</mat-card-title>
+      <mat-card-subtitle>E-mail, CPF ou CNPJ e senha, ou conta Google</mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      @if (registeredSuccess()) {
+        <p class="success-banner" role="status">
+          Cadastro realizado com sucesso! Faça login para continuar.
+        </p>
+      }
+
+      @if (errorMessage(); as message) {
+        <p class="error-banner" role="alert">{{ message }}</p>
+      }
+
+      <form class="login-form" [formGroup]="form" (ngSubmit)="submitCredentials()">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>E-mail, CPF ou CNPJ</mat-label>
+          <input matInput formControlName="identifier" autocomplete="username" />
+          @if (form.controls.identifier.hasError('required') && form.controls.identifier.touched) {
+            <mat-error>Informe o e-mail, CPF ou CNPJ</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Senha</mat-label>
+          <input matInput type="password" formControlName="password" autocomplete="current-password" />
+          @if (form.controls.password.hasError('required') && form.controls.password.touched) {
+            <mat-error>Informe a senha</mat-error>
+          }
+          @if (form.controls.password.hasError('minlength') && form.controls.password.touched) {
+            <mat-error>Mínimo de 6 caracteres</mat-error>
+          }
+        </mat-form-field>
+
+        <button
+          mat-flat-button
+          color="primary"
+          type="submit"
+          class="full-width"
+          [disabled]="loading()"
+        >
+          @if (loading()) {
+            Entrando...
+          } @else {
+            Entrar
+          }
+        </button>
+      </form>
+
+      @if (googleEnabled() !== false) {
+        <mat-divider class="divider">ou</mat-divider>
+
+        <button
+          mat-stroked-button
+          type="button"
+          class="full-width google-button"
+          [disabled]="loading() || googleEnabled() === null"
+          (click)="signInWithGoogle()"
+        >
+          <mat-icon>login</mat-icon>
+          @if (googleEnabled() === null) {
+            Verificando Google...
+          } @else {
+            Entrar com Google
+          }
+        </button>
+      } @else {
+        <p class="google-unavailable">
+          Login com Google indisponível: configure Client ID e Secret na API
+          (<code>GET /api/auth/google/status</code> retornou <code>enabled: false</code>).
+        </p>
+      }
+
+      @if (!isDevMock) {
+        <div class="dev-hint">
+          <p><strong>API:</strong> {{ apiUrl }}</p>
+          <p>Conta de desenvolvimento (seed do backend):</p>
+          <ul>
+            @for (account of devAccounts; track account.identifier) {
+              <li>
+                <button type="button" class="account-link" (click)="fillDevAccount(account.identifier, account.password)">
+                  <strong>{{ account.label }}:</strong> {{ account.identifier }}
+                </button>
+              </li>
+            }
+          </ul>
+          <p class="dev-note">Senha: <code>{{ devPasswordHint }}</code></p>
+        </div>
+      } @else {
+        <div class="dev-hint">
+          <p><strong>Modo mock</strong> — não conecta à API:</p>
+          <ul>
+            @for (account of devAccounts; track account.identifier) {
+              <li>
+                <button type="button" class="account-link" (click)="fillDevAccount(account.identifier, account.password)">
+                  <strong>{{ account.label }}:</strong> {{ account.identifier }} / {{ account.password }}
+                </button>
+              </li>
+            }
+          </ul>
+          @if (isGoogleMock) {
+            <p class="dev-note">“Entrar com Google” simula login mock.</p>
+          }
+        </div>
+      }
+
+      <p class="auth-footer">
+        Ainda não tem conta?
+        <a routerLink="/auth/cadastro" [queryParams]="{ returnUrl: returnUrl }">
+          Criar conta
+        </a>
+      </p>
+    </mat-card-content>
+  </mat-card>
+</div>

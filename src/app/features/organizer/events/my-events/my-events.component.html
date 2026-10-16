@@ -1,0 +1,168 @@
+<mat-card>
+  <mat-card-header>
+    <mat-card-title>Meus eventos</mat-card-title>
+    <mat-card-subtitle>
+      @if (loading()) {
+        Carregando…
+      } @else {
+        {{ total() }} evento(s)
+      }
+    </mat-card-subtitle>
+  </mat-card-header>
+
+  <mat-card-content>
+    @if (errorMessage()) {
+      <p class="error" role="alert">{{ errorMessage() }}</p>
+    }
+    @if (successMessage()) {
+      <p class="success" role="status">{{ successMessage() }}</p>
+    }
+    @if (publishErrors(); as pubErr) {
+      <div class="publish-errors" role="alert">
+        <div class="publish-errors-header">
+          <strong>Não foi possível publicar. Corrija os itens:</strong>
+          <button mat-button type="button" (click)="dismissPublishErrors()">Fechar</button>
+        </div>
+        <ul>
+          @for (msg of pubErr.errors; track msg) {
+            <li>{{ msg }}</li>
+          }
+        </ul>
+      </div>
+    }
+
+    <div class="toolbar">
+      <mat-form-field appearance="outline" class="status-filter">
+        <mat-label>Status</mat-label>
+        <mat-select
+          [value]="statusFilter()"
+          (selectionChange)="onStatusChange($event.value)"
+        >
+          @for (opt of statusOptions; track opt.value) {
+            <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <a mat-flat-button color="primary" [routerLink]="createRoute">
+        <mat-icon>add</mat-icon>
+        Criar evento
+      </a>
+    </div>
+
+    @if (!loading() && items().length === 0) {
+      <p class="empty">
+        Você ainda não tem eventos.
+        <a [routerLink]="createRoute">Criar o primeiro</a>
+      </p>
+    } @else if (items().length > 0) {
+      <div class="table-wrap">
+        <table mat-table [dataSource]="items()" class="events-table">
+          <ng-container matColumnDef="name">
+            <th mat-header-cell *matHeaderCellDef>Evento</th>
+            <td mat-cell *matCellDef="let row">
+              <div class="name">{{ row.name }}</div>
+              <div class="slug">{{ row.slug }}</div>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="status">
+            <th mat-header-cell *matHeaderCellDef>Status</th>
+            <td mat-cell *matCellDef="let row">
+              <span class="status" [attr.data-status]="row.status">{{ statusLabel(row.status) }}</span>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="startsAt">
+            <th mat-header-cell *matHeaderCellDef>Início</th>
+            <td mat-cell *matCellDef="let row">
+              {{ row.startsAt ? (row.startsAt | date: 'dd/MM/yyyy HH:mm') : '—' }}
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="place">
+            <th mat-header-cell *matHeaderCellDef>Local</th>
+            <td mat-cell *matCellDef="let row">
+              {{ row.venueName || '—' }}
+              @if (row.city || row.state) {
+                <span class="muted">
+                  · {{ row.city }}{{ row.city && row.state ? '/' : '' }}{{ row.state }}
+                </span>
+              }
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="updatedAtUtc">
+            <th mat-header-cell *matHeaderCellDef>Atualizado</th>
+            <td mat-cell *matCellDef="let row">
+              {{ row.updatedAtUtc ? (row.updatedAtUtc | date: 'dd/MM/yyyy HH:mm') : '—' }}
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef></th>
+            <td mat-cell *matCellDef="let row">
+              <div class="row-actions">
+                <a mat-stroked-button color="primary" [routerLink]="openEventRoute(row.id)">
+                  Abrir
+                  <mat-icon iconPositionEnd>arrow_forward</mat-icon>
+                </a>
+                @if (canViewRegistrations(row.status)) {
+                  <a mat-stroked-button [routerLink]="registrationsRoute(row.id)">
+                    <mat-icon>groups</mat-icon>
+                    Inscritos
+                  </a>
+                }
+                @if (canPublish(row.status)) {
+                  <button
+                    mat-flat-button
+                    color="accent"
+                    type="button"
+                    (click)="publish(row.id)"
+                    [disabled]="isBusy(row.id)"
+                  >
+                    <mat-icon>publish</mat-icon>
+                    {{
+                      publishingId() === row.id
+                        ? 'Publicando…'
+                        : row.status === 'Published'
+                          ? 'Republicar'
+                          : 'Publicar'
+                    }}
+                  </button>
+                }
+                @if (canClose(row.status)) {
+                  <button
+                    mat-stroked-button
+                    color="warn"
+                    type="button"
+                    (click)="close(row.id, row.name)"
+                    [disabled]="isBusy(row.id)"
+                  >
+                    <mat-icon>event_busy</mat-icon>
+                    {{ closingId() === row.id ? 'Encerrando…' : 'Encerrar' }}
+                  </button>
+                }
+                @if (canCancel(row.status)) {
+                  <button
+                    mat-button
+                    color="warn"
+                    type="button"
+                    (click)="cancel(row.id, row.name)"
+                    [disabled]="isBusy(row.id)"
+                  >
+                    <mat-icon>cancel</mat-icon>
+                    {{ cancellingId() === row.id ? 'Cancelando…' : 'Cancelar' }}
+                  </button>
+                }
+              </div>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+        </table>
+      </div>
+    }
+  </mat-card-content>
+</mat-card>

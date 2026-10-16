@@ -1,0 +1,113 @@
+.error {
+  color: #b71c1c;
+  background: #ffebee;
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+}
+
+.success {
+  color: #1b5e20;
+  background: #e8f5e9;
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+}
+
+.publish-errors {
+  color: #b71c1c;
+  background: #ffebee;
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+
+  .publish-errors-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+
+  ul {
+    margin: 0;
+    padding-left: 1.25rem;
+  }
+}
+
+.row-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.status-filter {
+  min-width: 180px;
+}
+
+.empty {
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.events-table {
+  width: 100%;
+}
+
+.name {
+  font-weight: 600;
+}
+
+.slug {
+  font-size: 0.8rem;
+  color: rgba(0, 0, 0, 0.55);
+}
+
+.muted {
+  color: rgba(0, 0, 0, 0.55);
+  font-size: 0.85rem;
+}
+
+.status {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: #eceff1;
+  color: rgba(0, 0, 0, 0.7);
+}
+
+.status[data-status='Draft'] {
+  background: #fff8e1;
+  color: #8a6d00;
+}
+
+.status[data-status='Published'] {
+  background: #e6f5f2;
+  color: var(--brand-teal-dark);
+}
+
+.status[data-status='Closed'] {
+  background: #eceff1;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.status[data-status='Cancelled'] {
+  background: #fdecea;
+  color: #b71c1c;
+}
+
+td.mat-mdc-cell,
+th.mat-mdc-header-cell {
+  padding-right: 1rem;
+}

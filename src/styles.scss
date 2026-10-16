@@ -1,0 +1,71 @@
+:root {
+  --app-breakpoint-sm: 600px;
+  --app-breakpoint-md: 960px;
+  --app-safe-top: env(safe-area-inset-top, 0px);
+  --app-safe-right: env(safe-area-inset-right, 0px);
+  --app-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --app-safe-left: env(safe-area-inset-left, 0px);
+  --app-page-padding: 1rem;
+
+  /* === Design tokens da marca === */
+  --brand-teal: #2a9d8f;
+  --brand-teal-dark: #1f8074;
+  --brand-orange: #e85d04;
+  --brand-orange-dark: #ba4703;
+  --brand-ink: #0b1412; /* fundo escuro do público */
+  --brand-ink-soft: #16211e;
+
+  /* Superfícies claras (organizador/auth) com leve tom teal */
+  --surface-gradient: linear-gradient(160deg, #e8f6f4 0%, #f4f7f6 50%, #ffffff 100%);
+  --brand-font-title: 'Barlow Condensed', 'Helvetica Neue', sans-serif;
+  --brand-font-body: 'DM Sans', 'Helvetica Neue', sans-serif;
+  --brand-radius: 14px;
+}
+
+@media (min-width: 600px) {
+  :root {
+    --app-page-padding: 1.5rem;
+  }
+}
+
+html {
+  height: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+html,
+body {
+  margin: 0;
+}
+
+body {
+  min-height: 100%;
+  min-height: 100dvh;
+  font-family: var(--brand-font-body);
+}
+
+/* Títulos com a fonte de marca (inclui títulos de mat-card). */
+h1,
+h2,
+h3,
+.mat-mdc-card-title {
+  font-family: var(--brand-font-title);
+  letter-spacing: 0.01em;
+}
+
+.app-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--app-page-padding);
+  padding-left: calc(var(--app-page-padding) + var(--app-safe-left));
+  padding-right: calc(var(--app-page-padding) + var(--app-safe-right));
+  padding-bottom: calc(var(--app-page-padding) + var(--app-safe-bottom));
+  box-sizing: border-box;
+}
+
+.app-page-card {
+  width: 100%;
+}

@@ -1,0 +1,445 @@
+@if (loading()) {
+  <mat-card>
+    <mat-card-content>
+      <p>Carregando evento…</p>
+    </mat-card-content>
+  </mat-card>
+} @else if (!event() && errorMessage()) {
+  <mat-card class="gate">
+    <mat-card-content>
+      <p class="error" role="alert">{{ errorMessage() }}</p>
+      <a mat-button [routerLink]="homeRoute">Voltar ao início</a>
+    </mat-card-content>
+  </mat-card>
+} @else {
+  <mat-card>
+    <mat-card-header>
+      <mat-card-title>Continuar cadastro</mat-card-title>
+      <mat-card-subtitle>
+        {{ event()?.name }} · {{ event()?.status }} · categorias e módulos
+      </mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      @if (errorMessage()) {
+        <p class="error" role="alert">{{ errorMessage() }}</p>
+      }
+      @if (successMessage()) {
+        <p class="success" role="status">{{ successMessage() }}</p>
+      }
+
+      @if (isCancelled()) {
+        <p class="warn">Este evento foi cancelado e não pode ser editado.</p>
+      }
+      @if (isClosed()) {
+        <p class="hint">Evento encerrado: apenas descrição e contato podem ser alterados.</p>
+      }
+
+      <form [formGroup]="form">
+        <h3>Dados básicos</h3>
+        <div class="grid">
+          <mat-form-field appearance="outline">
+            <mat-label>Nome</mat-label>
+            <input matInput formControlName="name" maxlength="160" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Modalidade</mat-label>
+            <mat-select formControlName="sportType">
+              @for (opt of sportTypes; track opt.value) {
+                <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full">
+            <mat-label>Descrição</mat-label>
+            <textarea matInput formControlName="description" rows="3"></textarea>
+          </mat-form-field>
+
+          <div class="full image-block">
+            <p class="field-label">Imagem do evento (capa)</p>
+            <p class="section-help">
+              Arte principal da página do evento (JPEG, PNG ou WEBP, até 5 MB). A capa usa enquadramento
+              fixo — o centro da imagem é o que mais aparece. Evite texto importante nas bordas.
+            </p>
+            <div class="image-row">
+              <div class="image-picker">
+                <label class="file-button">
+                  <mat-icon>upload</mat-icon>
+                  Escolher imagem
+                  <input type="file" accept="image/*" (change)="onBannerSelected($event)" hidden />
+                </label>
+                @if (bannerFileName()) {
+                  <span class="file-name">{{ bannerFileName() }} (local — ainda não enviado)</span>
+                } @else if (form.controls.bannerUrl.value) {
+                  <span class="file-name">Imagem já salva no evento</span>
+                } @else {
+                  <span class="file-name muted">Nenhuma imagem</span>
+                }
+                @if (bannerDisplayImage()) {
+                  <button mat-button type="button" color="warn" (click)="clearBanner()">
+                    Remover imagem
+                  </button>
+                }
+              </div>
+              @if (bannerDisplayImage(); as imgSrc) {
+                <img [src]="imgSrc" alt="Capa do evento" class="banner-preview" />
+              }
+            </div>
+          </div>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Início</mat-label>
+            <input matInput type="datetime-local" formControlName="startsAtLocal" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Inscrições até</mat-label>
+            <input matInput type="datetime-local" formControlName="registrationClosesAtLocal" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Local</mat-label>
+            <input matInput formControlName="venueName" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>E-mail de contato</mat-label>
+            <input matInput type="email" formControlName="contactEmail" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Telefone</mat-label>
+            <input matInput formControlName="contactPhone" />
+          </mat-form-field>
+        </div>
+
+        <h3>Categorias</h3>
+        <p class="section-help">
+          Cada categoria é uma opção de inscrição (ex.: 5K masculino, 10K aberto). Distância e gênero
+          ficam aqui; o preço fica nos <strong>lotes de cada prova</strong> (próxima etapa).
+        </p>
+        @if (canEditCategories()) {
+          <div class="section-actions">
+            <button mat-stroked-button type="button" (click)="addCategory()">
+              <mat-icon>add</mat-icon>
+              Adicionar categoria
+            </button>
+          </div>
+        }
+
+        @for (ctrl of categories.controls; track $index; let i = $index) {
+          <div class="category" [formGroup]="$any(ctrl)">
+            <div class="grid">
+              <mat-form-field appearance="outline">
+                <mat-label>Nome</mat-label>
+                <input matInput formControlName="name" placeholder="Ex.: 5K" />
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Gênero</mat-label>
+                <mat-select formControlName="gender">
+                  @for (g of genderOptions; track g.value) {
+                    <mat-option [value]="g.value">{{ g.label }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Idade mín.</mat-label>
+                <input matInput type="number" formControlName="minAge" min="0" />
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Idade máx.</mat-label>
+                <input matInput type="number" formControlName="maxAge" min="0" />
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Desconto (%)</mat-label>
+                <input
+                  matInput
+                  type="number"
+                  formControlName="discountPercent"
+                  min="0"
+                  max="100"
+                  placeholder="Ex.: 50"
+                />
+                <mat-hint>Opcional — aplicado ao lote (ex.: PCD, 60+)</mat-hint>
+              </mat-form-field>
+            </div>
+            @if (canEditCategories()) {
+              <button mat-button color="warn" type="button" (click)="removeCategory(i)">
+                Remover
+              </button>
+            }
+          </div>
+        } @empty {
+          <p class="hint">Nenhuma categoria ainda. Adicione provas (ex.: 5K, 10K) antes de publicar.</p>
+        }
+
+        <div class="placeholder-box">
+          <mat-icon>map</mat-icon>
+          <span>
+            Em seguida: <strong>Provas e percursos</strong> (com vagas, mapa e
+            <strong>lotes de preço</strong> por percurso). O botão abaixo registra esta etapa e
+            avança.
+          </span>
+        </div>
+
+        <h3>Módulos opcionais</h3>
+        <p class="section-help">
+          Ligue só o que o evento precisa. Cada módulo vira uma seção na página pública.
+        </p>
+
+        @if (!canEditModules()) {
+          <p class="hint">Módulos não podem ser alterados neste status.</p>
+        } @else {
+          <div class="module">
+            <mat-slide-toggle formControlName="routeEnabled">Percurso (descrição)</mat-slide-toggle>
+            <p class="module-help">
+              Texto sobre o trajeto (tipo de piso, altimetria, pontos de hidratação…). Aparece na
+              página pública. As imagens/mapas do percurso ficam em <strong>Provas</strong>.
+            </p>
+            @if (form.controls.routeEnabled.value) {
+              <mat-form-field appearance="outline" class="full">
+                <mat-label>Descrição do percurso</mat-label>
+                <textarea
+                  matInput
+                  formControlName="routeDescription"
+                  rows="3"
+                  placeholder="Ex.: Circuito plano no parque, asfalto; hidratação nos km 3 e 7."
+                ></textarea>
+              </mat-form-field>
+            }
+          </div>
+
+          <div class="module">
+            <mat-slide-toggle formControlName="kitEnabled">Kit do atleta</mat-slide-toggle>
+            <p class="module-help">
+              Lista o que o inscrito recebe (camiseta, medalha, número…). Aparece na vitrine.
+            </p>
+            @if (form.controls.kitEnabled.value) {
+              <mat-form-field appearance="outline" class="full">
+                <mat-label>Itens (um por linha)</mat-label>
+                <textarea
+                  matInput
+                  formControlName="kitItemsText"
+                  rows="4"
+                  placeholder="Camiseta&#10;Medalha&#10;Número de peito"
+                ></textarea>
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="full">
+                <mat-label>Observações / brindes</mat-label>
+                <textarea matInput formControlName="kitExtrasNote" rows="2"></textarea>
+              </mat-form-field>
+
+              <mat-slide-toggle formControlName="shirtEnabled">Tabela de medidas de camiseta</mat-slide-toggle>
+              <p class="module-help">
+                Se o kit inclui camiseta, marque os tamanhos. Na inscrição o atleta escolhe o tamanho.
+              </p>
+              @if (form.controls.shirtEnabled.value) {
+                <p class="module-help">
+                  Marque os tamanhos oferecidos. As medidas (largura/altura) são
+                  <strong>opcionais</strong> — preencha só se quiser exibir a tabela.
+                </p>
+                <div class="shirt-sizes">
+                  @for (size of shirtCatalog; track size.label) {
+                    <mat-checkbox
+                      [checked]="isShirtSelected(size.label)"
+                      (change)="toggleShirtSize(size.label, $event.checked)"
+                    >
+                      {{ size.label }}
+                    </mat-checkbox>
+                  }
+                </div>
+
+                @if (form.controls.shirtEnabled.value) {
+                  <div class="shirt-measures">
+                    @for (size of shirtCatalog; track size.label) {
+                      @if (isShirtSelected(size.label)) {
+                        <div class="shirt-measure-row">
+                          <span class="shirt-label">{{ size.label }}</span>
+                          <mat-form-field appearance="outline">
+                            <mat-label>Largura (cm)</mat-label>
+                            <input
+                              matInput
+                              type="number"
+                              min="0"
+                              step="0.5"
+                              [value]="shirtDim(size.label, 'widthCm')"
+                              (input)="setShirtDim(size.label, 'widthCm', $any($event.target).value)"
+                            />
+                          </mat-form-field>
+                          <mat-form-field appearance="outline">
+                            <mat-label>Altura (cm)</mat-label>
+                            <input
+                              matInput
+                              type="number"
+                              min="0"
+                              step="0.5"
+                              [value]="shirtDim(size.label, 'heightCm')"
+                              (input)="setShirtDim(size.label, 'heightCm', $any($event.target).value)"
+                            />
+                          </mat-form-field>
+                        </div>
+                      }
+                    }
+                  </div>
+                }
+
+                <mat-form-field appearance="outline" class="full">
+                  <mat-label>Dica de medição</mat-label>
+                  <input matInput formControlName="shirtMeasurementHint" />
+                </mat-form-field>
+              }
+            }
+          </div>
+
+          <div class="module">
+            <mat-slide-toggle formControlName="kitPickupEnabled">Retirada de kit</mat-slide-toggle>
+            <p class="module-help">
+              Onde e quando retirar o kit (locais, horários, documentos). Texto livre.
+            </p>
+            @if (form.controls.kitPickupEnabled.value) {
+              <mat-form-field appearance="outline" class="full">
+                <mat-label>Como e onde retirar</mat-label>
+                <textarea matInput formControlName="kitPickupDescription" rows="3"></textarea>
+              </mat-form-field>
+            }
+          </div>
+
+          <div class="module">
+            <mat-slide-toggle formControlName="socialEnabled">Site e redes</mat-slide-toggle>
+            <p class="module-help">Links do site e Instagram do evento na página pública.</p>
+            @if (form.controls.socialEnabled.value) {
+              <div class="grid">
+                <mat-form-field appearance="outline">
+                  <mat-label>Website (https)</mat-label>
+                  <input matInput formControlName="websiteUrl" />
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>Instagram (https)</mat-label>
+                  <input matInput formControlName="instagramUrl" />
+                </mat-form-field>
+              </div>
+            }
+          </div>
+        }
+
+        <h3>Regulamento</h3>
+        <div class="grid">
+          <mat-form-field appearance="outline" class="full">
+            <mat-label>Texto do regulamento</mat-label>
+            <textarea matInput formControlName="regulationText" rows="5"></textarea>
+          </mat-form-field>
+        </div>
+
+        <div class="image-block">
+          <p class="field-label">Arquivo do regulamento (PDF)</p>
+          <p class="section-help">
+            Envie o regulamento em PDF (até 10 MB). Na página pública o atleta abre o arquivo
+            direto. Como alternativa, você pode informar uma URL externa abaixo.
+          </p>
+          <div class="image-row">
+            <div class="image-picker">
+              <label class="file-button">
+                <mat-icon>upload</mat-icon>
+                Escolher PDF
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  (change)="onRegulationSelected($event)"
+                  [disabled]="isClosed() || isCancelled()"
+                  hidden
+                />
+              </label>
+              @if (regulationFileName()) {
+                <span class="file-name">{{ regulationFileName() }} (local — ainda não enviado)</span>
+              } @else if (form.controls.regulationUrl.value) {
+                <span class="file-name">Regulamento já salvo</span>
+              } @else {
+                <span class="file-name muted">Nenhum arquivo</span>
+              }
+              @if (form.controls.regulationUrl.value || regulationFileName()) {
+                <button mat-button type="button" color="warn" (click)="clearRegulationFile()">
+                  Remover arquivo local
+                </button>
+              }
+            </div>
+          </div>
+          @if (form.controls.regulationUrl.value && !regulationFileName()) {
+            <a
+              class="file-name"
+              [href]="form.controls.regulationUrl.value"
+              target="_blank"
+              rel="noopener"
+              >Abrir regulamento salvo</a
+            >
+          }
+        </div>
+
+        <div class="grid">
+          <mat-form-field appearance="outline" class="full">
+            <mat-label>URL do regulamento (https) — alternativa ao PDF</mat-label>
+            <input matInput formControlName="regulationUrl" />
+          </mat-form-field>
+        </div>
+
+        <h3>Seções personalizadas</h3>
+        <p class="section-help">
+          Espaço livre para o que não cabe nos campos acima (ex.: cronograma, premiação,
+          estacionamento, retirada de kit). Cada seção vira um bloco na página pública. Só aparece o
+          que você preencher.
+        </p>
+        <div class="section-actions">
+          <button mat-stroked-button type="button" (click)="addCustomSection()">
+            <mat-icon>add</mat-icon>
+            Adicionar seção
+          </button>
+        </div>
+
+        @for (ctrl of customSections.controls; track $index; let i = $index) {
+          <div class="category" [formGroup]="$any(ctrl)">
+            <div class="grid">
+              <mat-form-field appearance="outline" class="full">
+                <mat-label>Título da seção</mat-label>
+                <input
+                  matInput
+                  formControlName="title"
+                  maxlength="80"
+                  placeholder="Ex.: Retirada de kit"
+                />
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="full">
+                <mat-label>Conteúdo</mat-label>
+                <textarea
+                  matInput
+                  formControlName="content"
+                  rows="4"
+                  maxlength="4000"
+                  placeholder="Descreva livremente. Quebras de linha são preservadas."
+                ></textarea>
+              </mat-form-field>
+            </div>
+            <button mat-button color="warn" type="button" (click)="removeCustomSection(i)">
+              Remover seção
+            </button>
+          </div>
+        } @empty {
+          <p class="hint">Nenhuma seção extra. Opcional — use se quiser dar mais detalhes.</p>
+        }
+
+        <div class="actions">
+          <button mat-button type="button" (click)="cancel()" [disabled]="saving()">Voltar</button>
+          <button
+            mat-flat-button
+            color="primary"
+            type="button"
+            (click)="saveAndGoToProofs()"
+            [disabled]="saving() || isCancelled()"
+          >
+            {{ saving() ? 'Salvando…' : 'Salvar e ir para provas' }}
+          </button>
+        </div>
+      </form>
+    </mat-card-content>
+  </mat-card>
+}

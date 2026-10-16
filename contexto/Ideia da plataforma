@@ -1,0 +1,73 @@
+
+🔹 1️⃣ Fluxo do ATLETA (inscrição)
+
+Esse é o mais importante.
+
+Tela 1 — Página do evento
+Nome do evento
+Data
+Local
+Distâncias (ex: 1km, 3km, 5km)
+Preço
+Botão: “Inscrever-se”
+Tela 2 — Formulário
+Nome
+Email
+Telefone
+Data de nascimento
+Distância escolhida
+Aceite do termo (checkbox)
+
+👉 Simples. Nada além disso.
+
+Tela 3 — Pagamento
+
+Integração com:
+
+Mercado Pago
+
+Por quê?
+
+Fácil de integrar
+Suporte a PIX + cartão
+Checkout pronto (menos código)
+Tela 4 — Confirmação
+“Inscrição confirmada”
+Comprovante
+Email automático
+🔹 2️⃣ Fluxo do ORGANIZADOR
+
+Você só precisa do básico.
+
+Tela 1 — Criar evento
+Nome
+Data
+Local
+Descrição
+Limite de participantes
+Tela 2 — Criar lotes
+Lote 1: R$ 120
+Lote 2: R$ 150
+Quantidade por lote
+Tela 3 — Distâncias/provas
+1km
+3km
+5km
+
+Com limite opcional
+
+Tela 4 — Lista de inscritos
+
+Tabela simples:
+
+Nome
+Prova
+Status (Pago / Pendente)
+
+Botão:
+
+Exportar CSV
+Tela 5 — Financeiro simples
+Total arrecadado
+Nº de inscritos
+Taxas

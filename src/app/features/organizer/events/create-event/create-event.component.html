@@ -1,0 +1,186 @@
+@if (!canCreate()) {
+  <mat-card class="gate">
+    <mat-card-content>
+      <p>
+        Para criar um evento você precisa estar autenticado como
+        <strong>organizador</strong> com perfil completo (CNPJ).
+      </p>
+      <a
+        mat-flat-button
+        color="primary"
+        routerLink="/auth/completar-perfil"
+        [queryParams]="{ returnUrl: homeRoute + '/eventos/novo' }"
+      >
+        Completar perfil
+      </a>
+      <a mat-button [routerLink]="homeRoute">Voltar</a>
+    </mat-card-content>
+  </mat-card>
+} @else {
+  <mat-card>
+    <mat-card-header>
+      <mat-card-title>Criar evento</mat-card-title>
+      <mat-card-subtitle>Etapa 1 de 3 — dados básicos (rascunho)</mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      @if (errorMessage()) {
+        <p class="error" role="alert">{{ errorMessage() }}</p>
+      }
+      @if (successMessage()) {
+        <p class="success" role="status">{{ successMessage() }}</p>
+      }
+
+      <form [formGroup]="form">
+        <h3>Identidade</h3>
+        <div class="grid">
+          <mat-form-field appearance="outline">
+            <mat-label>Nome do evento</mat-label>
+            <input matInput formControlName="name" maxlength="160" />
+            @if (form.controls.name.touched && form.controls.name.hasError('required')) {
+              <mat-error>Informe o nome</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Modalidade</mat-label>
+            <mat-select formControlName="sportType">
+              @for (opt of sportTypes; track opt.value) {
+                <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full">
+            <mat-label>Descrição</mat-label>
+            <textarea matInput formControlName="description" rows="4"></textarea>
+          </mat-form-field>
+
+          <div class="full image-block">
+            <p class="field-label">Imagem do evento (capa)</p>
+            <p class="hint tight">
+              Arte principal da página do evento (JPEG, PNG ou WEBP, até 5 MB). A capa usa enquadramento
+              fixo — o centro da imagem é o que mais aparece.
+            </p>
+            <div class="image-row">
+              <div class="image-picker">
+                <label class="file-button">
+                  <mat-icon>upload</mat-icon>
+                  Escolher imagem
+                  <input type="file" accept="image/*" (change)="onBannerSelected($event)" hidden />
+                </label>
+                @if (bannerFileName()) {
+                  <span class="file-name">{{ bannerFileName() }} (local — ainda não enviado)</span>
+                } @else {
+                  <span class="file-name muted">Nenhuma imagem</span>
+                }
+                @if (bannerPreview()) {
+                  <button mat-button type="button" color="warn" (click)="clearBanner()">
+                    Remover imagem
+                  </button>
+                }
+              </div>
+              @if (bannerPreview(); as preview) {
+                <img [src]="preview" alt="Prévia da capa do evento" class="banner-preview" />
+              }
+            </div>
+          </div>
+        </div>
+
+        <h3>Data e local</h3>
+        <div class="grid">
+          <mat-form-field appearance="outline">
+            <mat-label>Início do evento</mat-label>
+            <input matInput type="datetime-local" formControlName="startsAtLocal" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Inscrições até</mat-label>
+            <input matInput type="datetime-local" formControlName="registrationClosesAtLocal" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Local (nome)</mat-label>
+            <input matInput formControlName="venueName" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Rua</mat-label>
+            <input matInput formControlName="street" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Número</mat-label>
+            <input matInput formControlName="number" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Complemento</mat-label>
+            <input matInput formControlName="complement" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Bairro</mat-label>
+            <input matInput formControlName="neighborhood" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Cidade</mat-label>
+            <input matInput formControlName="city" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>UF</mat-label>
+            <input matInput formControlName="state" maxlength="2" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>País</mat-label>
+            <input matInput formControlName="country" />
+          </mat-form-field>
+        </div>
+
+        <h3>Contato</h3>
+        <div class="grid">
+          <mat-form-field appearance="outline">
+            <mat-label>E-mail de contato</mat-label>
+            <input matInput type="email" formControlName="contactEmail" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Telefone</mat-label>
+            <input matInput formControlName="contactPhone" />
+          </mat-form-field>
+        </div>
+
+        <p class="hint">
+          <strong>Salvar rascunho</strong> grava e você pode voltar depois.
+          <strong>Próximo</strong> grava e segue para categorias, módulos e regulamento.
+        </p>
+
+        <div class="actions">
+          <button mat-button type="button" (click)="cancel()" [disabled]="loading()">Cancelar</button>
+          <button
+            mat-stroked-button
+            color="primary"
+            type="button"
+            (click)="saveDraft()"
+            [disabled]="loading()"
+          >
+            {{ loading() ? 'Salvando…' : 'Salvar rascunho' }}
+          </button>
+          <button
+            mat-flat-button
+            color="primary"
+            type="button"
+            (click)="goNext()"
+            [disabled]="loading()"
+          >
+            {{ loading() ? 'Salvando…' : 'Próximo' }}
+            <mat-icon iconPositionEnd>arrow_forward</mat-icon>
+          </button>
+        </div>
+      </form>
+    </mat-card-content>
+  </mat-card>
+}

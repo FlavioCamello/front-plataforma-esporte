@@ -1,0 +1,33 @@
+.home {
+  background: var(--surface-gradient);
+  padding-top: calc(var(--app-page-padding) + var(--app-safe-top));
+}
+
+.home-card {
+  max-width: 520px;
+}
+
+.warning {
+  color: #b45309;
+  background: #fffbeb;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  margin: 0 0 1rem;
+}
+
+mat-card-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 399px) {
+  mat-card-actions {
+    flex-direction: column;
+
+    a[mat-flat-button],
+    a[mat-stroked-button] {
+      width: 100%;
+    }
+  }
+}

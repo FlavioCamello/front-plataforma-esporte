@@ -1,0 +1,10 @@
+services:
+  front:
+    build:
+      context: .
+    container_name: plataforma-esporte-front
+    ports:
+      - "4000:4000"
+    environment:
+      PORT: 4000
+    restart: unless-stopped

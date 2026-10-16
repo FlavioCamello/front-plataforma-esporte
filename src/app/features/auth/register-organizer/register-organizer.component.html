@@ -1,0 +1,197 @@
+<div class="app-page auth-page">
+  <mat-card class="app-page-card auth-card">
+    <mat-card-header>
+      <mat-card-title>Criar conta</mat-card-title>
+      <mat-card-subtitle>Atletas (CPF) e organizadores (CNPJ) na mesma plataforma</mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      @if (errorMessage(); as message) {
+        <p class="error-banner" role="alert">{{ message }}</p>
+      }
+
+      <form class="auth-form" [formGroup]="form" (ngSubmit)="submit()">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Nome completo</mat-label>
+          <input matInput formControlName="name" autocomplete="name" />
+          @if (form.controls.name.hasError('required') && form.controls.name.touched) {
+            <mat-error>Informe seu nome</mat-error>
+          }
+          @if (form.controls.name.hasError('minlength') && form.controls.name.touched) {
+            <mat-error>Mínimo de 3 caracteres</mat-error>
+          }
+        </mat-form-field>
+
+        <div class="person-type-section">
+          <span class="person-type-label">Tipo de cadastro</span>
+          <div class="person-type-options" role="group" aria-label="Tipo de cadastro">
+            <button
+              type="button"
+              class="person-type-option"
+              [class.person-type-option--selected]="form.controls.personType.value === 'pf'"
+              [attr.aria-pressed]="form.controls.personType.value === 'pf'"
+              (click)="setPersonType('pf')"
+            >
+              <span class="person-type-option__title">Física</span>
+              <span class="person-type-option__meta">Atleta · CPF</span>
+            </button>
+            <button
+              type="button"
+              class="person-type-option"
+              [class.person-type-option--selected]="form.controls.personType.value === 'pj'"
+              [attr.aria-pressed]="form.controls.personType.value === 'pj'"
+              (click)="setPersonType('pj')"
+            >
+              <span class="person-type-option__title">Jurídica</span>
+              <span class="person-type-option__meta">Organizador · CNPJ</span>
+            </button>
+          </div>
+        </div>
+
+        @if (!isOrganizer()) {
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Nacionalidade</mat-label>
+            <mat-select formControlName="nationality">
+              @for (option of nationalities; track option) {
+                <mat-option [value]="option">{{ option }}</mat-option>
+              }
+            </mat-select>
+            @if (form.controls.nationality.hasError('required') && form.controls.nationality.touched) {
+              <mat-error>Informe a nacionalidade</mat-error>
+            }
+          </mat-form-field>
+        }
+
+        @if (isOrganizer()) {
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>CNPJ</mat-label>
+            <input matInput formControlName="document" inputmode="numeric" placeholder="00.000.000/0000-00" />
+            @if (form.controls.document.hasError('required') && form.controls.document.touched) {
+              <mat-error>Informe o documento</mat-error>
+            }
+            @if (form.controls.document.hasError('cnpj') && form.controls.document.touched) {
+              <mat-error>CNPJ inválido</mat-error>
+            }
+          </mat-form-field>
+        } @else if (isForeign()) {
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Documento (país de origem)</mat-label>
+            <input matInput formControlName="document" autocomplete="off" />
+            @if (form.controls.document.hasError('required') && form.controls.document.touched) {
+              <mat-error>Informe o documento</mat-error>
+            }
+          </mat-form-field>
+        } @else {
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>CPF</mat-label>
+            <input matInput formControlName="document" inputmode="numeric" placeholder="000.000.000-00" />
+            @if (form.controls.document.hasError('required') && form.controls.document.touched) {
+              <mat-error>Informe o documento</mat-error>
+            }
+            @if (form.controls.document.hasError('cpf') && form.controls.document.touched) {
+              <mat-error>CPF inválido</mat-error>
+            }
+          </mat-form-field>
+        }
+
+        @if (isOrganizer()) {
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Razão social</mat-label>
+            <input matInput formControlName="companyName" autocomplete="organization" />
+            @if (form.controls.companyName.hasError('required') && form.controls.companyName.touched) {
+              <mat-error>Informe a razão social</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>CPF do responsável</mat-label>
+            <input matInput formControlName="responsibleDocument" inputmode="numeric" placeholder="000.000.000-00" />
+            @if (form.controls.responsibleDocument.hasError('required') && form.controls.responsibleDocument.touched) {
+              <mat-error>Informe o CPF do responsável</mat-error>
+            }
+            @if (form.controls.responsibleDocument.hasError('cpf') && form.controls.responsibleDocument.touched) {
+              <mat-error>CPF inválido</mat-error>
+            }
+          </mat-form-field>
+        }
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Data de nascimento</mat-label>
+          <input matInput type="date" formControlName="birthDate" [max]="maxBirthDate" />
+          @if (form.controls.birthDate.hasError('required') && form.controls.birthDate.touched) {
+            <mat-error>Informe a data de nascimento</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Gênero</mat-label>
+          <mat-select formControlName="gender">
+            @for (option of genders; track option) {
+              <mat-option [value]="option">{{ option }}</mat-option>
+            }
+          </mat-select>
+          @if (form.controls.gender.hasError('required') && form.controls.gender.touched) {
+            <mat-error>Informe o gênero</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Telefone</mat-label>
+          <input matInput formControlName="phone" autocomplete="tel" placeholder="(11) 99999-9999" />
+          @if (form.controls.phone.hasError('required') && form.controls.phone.touched) {
+            <mat-error>Informe o telefone</mat-error>
+          }
+          @if (form.controls.phone.hasError('pattern') && form.controls.phone.touched) {
+            <mat-error>Telefone inválido (DDD + número)</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>E-mail</mat-label>
+          <input matInput type="email" formControlName="email" autocomplete="email" />
+          @if (form.controls.email.hasError('required') && form.controls.email.touched) {
+            <mat-error>Informe o e-mail</mat-error>
+          }
+          @if (form.controls.email.hasError('email') && form.controls.email.touched) {
+            <mat-error>E-mail inválido</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Senha</mat-label>
+          <input matInput type="password" formControlName="password" autocomplete="new-password" />
+          @if (form.controls.password.hasError('required') && form.controls.password.touched) {
+            <mat-error>Informe a senha</mat-error>
+          }
+          @if (form.controls.password.hasError('minlength') && form.controls.password.touched) {
+            <mat-error>Mínimo de 8 caracteres</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Confirmar senha</mat-label>
+          <input matInput type="password" formControlName="confirmPassword" autocomplete="new-password" />
+          @if (form.controls.confirmPassword.hasError('required') && form.controls.confirmPassword.touched) {
+            <mat-error>Confirme a senha</mat-error>
+          }
+          @if (form.controls.confirmPassword.hasError('passwordMismatch') && form.controls.confirmPassword.touched) {
+            <mat-error>As senhas não conferem</mat-error>
+          }
+        </mat-form-field>
+
+        <button mat-flat-button color="primary" type="submit" class="full-width" [disabled]="loading()">
+          @if (loading()) {
+            Criando conta...
+          } @else {
+            Criar conta
+          }
+        </button>
+      </form>
+
+      <p class="auth-footer">
+        Já tem conta?
+        <a routerLink="/auth/login">Entrar</a>
+      </p>
+    </mat-card-content>
+  </mat-card>
+</div>

@@ -1,0 +1,95 @@
+// Tema Angular Material da marca (M2) — organizador/auth em tema CLARO,
+// paleta teal (primário) + laranja (destaque), tipografia DM Sans.
+@use '@angular/material' as mat;
+
+@include mat.core();
+
+// Paleta teal (base #2a9d8f)
+$brand-teal: (
+  50: #e6f5f2,
+  100: #c1e6df,
+  200: #98d6ca,
+  300: #6ec5b4,
+  400: #4fb8a4,
+  500: #2a9d8f,
+  600: #259083,
+  700: #1f8074,
+  800: #197065,
+  900: #0f544b,
+  A100: #a8fff0,
+  A200: #75ffe6,
+  A400: #42ffdb,
+  A700: #29ffd6,
+  contrast: (
+    50: rgba(0, 0, 0, 0.87),
+    100: rgba(0, 0, 0, 0.87),
+    200: rgba(0, 0, 0, 0.87),
+    300: rgba(0, 0, 0, 0.87),
+    400: #ffffff,
+    500: #ffffff,
+    600: #ffffff,
+    700: #ffffff,
+    800: #ffffff,
+    900: #ffffff,
+    A100: rgba(0, 0, 0, 0.87),
+    A200: rgba(0, 0, 0, 0.87),
+    A400: rgba(0, 0, 0, 0.87),
+    A700: #ffffff,
+  ),
+);
+
+// Paleta laranja (base #e85d04)
+$brand-orange: (
+  50: #fdece1,
+  100: #fbd0b5,
+  200: #f8b184,
+  300: #f49153,
+  400: #f2792e,
+  500: #e85d04,
+  600: #d35304,
+  700: #ba4703,
+  800: #a03d02,
+  900: #7a2d01,
+  A100: #ffd0c0,
+  A200: #ffab90,
+  A400: #ff7e50,
+  A700: #ff6636,
+  contrast: (
+    50: rgba(0, 0, 0, 0.87),
+    100: rgba(0, 0, 0, 0.87),
+    200: rgba(0, 0, 0, 0.87),
+    300: rgba(0, 0, 0, 0.87),
+    400: #ffffff,
+    500: #ffffff,
+    600: #ffffff,
+    700: #ffffff,
+    800: #ffffff,
+    900: #ffffff,
+    A100: rgba(0, 0, 0, 0.87),
+    A200: rgba(0, 0, 0, 0.87),
+    A400: #ffffff,
+    A700: #ffffff,
+  ),
+);
+
+$primary: mat.m2-define-palette($brand-teal, 500, 300, 700);
+$accent: mat.m2-define-palette($brand-orange, 500, 300, 700);
+$warn: mat.m2-define-palette(mat.$m2-red-palette);
+
+$typography: mat.m2-define-typography-config(
+  $font-family: '"DM Sans", "Helvetica Neue", sans-serif',
+);
+
+$theme: mat.m2-define-light-theme(
+  (
+    color: (
+      primary: $primary,
+      accent: $accent,
+      warn: $warn,
+    ),
+    typography: $typography,
+    density: 0,
+  )
+);
+
+@include mat.all-component-themes($theme);
