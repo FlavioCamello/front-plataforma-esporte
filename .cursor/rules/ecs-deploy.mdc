@@ -1,0 +1,14 @@
+---
+description: Ao subir imagem no ECS, commitar e manter a branch ecs como a que está em produção.
+alwaysApply: true
+---
+
+# Deploy ECS = branch `ecs` em produção
+
+Quando o usuário pedir para **subir imagem / deploy / push para o ECS**:
+
+1. **Branch `ecs` é o que está no ar.** Checkout `ecs`. Não commitar esse deploy em `main` salvo pedido explícito.
+2. **Commit na `ecs` é obrigatório nesse pedido.** Inclua o código que entra na imagem. Não commite `.env` nem secrets.
+3. **Push** `origin ecs`.
+4. Build `linux/amd64` com `API_URL=https://api.participando.com.br` e `SITE_URL=https://www.participando.com.br` → ECR `plataforma-esporte-front` → `ecs update-service` no serviço `plataforma-esporte-front` (cluster `plataforma-esporte`, `sa-east-1`).
+5. Confirme `https://www.participando.com.br`.
