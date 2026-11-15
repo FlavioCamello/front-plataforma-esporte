@@ -17,16 +17,28 @@ export function app(): express.Express {
   server.set('view engine', 'html');
   server.set('views', browserDistFolder);
 
-  // Example Express Rest API endpoints
-  // server.get('/api/**', (req, res) => { });
-  // Serve static files from /browser
-  server.get('**', express.static(browserDistFolder, {
-    maxAge: '1y',
-    index: 'index.html',
-  }));
+  // JS/CSS com hash podem ficar em cache. HTML não: o navegador guardaria a página
+  // e depois pediria chunks que o deploy seguinte já removeu.
+  server.get(
+    '**',
+    express.static(browserDistFolder, {
+      maxAge: '1y',
+      index: false,
+      redirect: false,
+      setHeaders(res, filePath) {
+        if (filePath.endsWith('.html')) {
+          res.setHeader('Cache-Control', 'no-cache');
+        }
+      },
+    }),
+  );
 
-  // All regular routes use the Angular engine
   server.get('**', (req, res, next) => {
+    if (/\.[a-zA-Z0-9]+$/.test(req.path) && !req.path.endsWith('.html')) {
+      res.status(404).type('text/plain').send('Not found');
+      return;
+    }
+
     const { protocol, originalUrl, baseUrl, headers } = req;
 
     commonEngine
@@ -37,7 +49,10 @@ export function app(): express.Express {
         publicPath: browserDistFolder,
         providers: [{ provide: APP_BASE_HREF, useValue: baseUrl }],
       })
-      .then((html) => res.send(html))
+      .then((html) => {
+        res.setHeader('Cache-Control', 'no-cache');
+        res.send(html);
+      })
       .catch((err) => next(err));
   });
 
