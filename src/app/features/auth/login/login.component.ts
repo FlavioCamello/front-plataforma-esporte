@@ -15,6 +15,7 @@ import { AuthService } from '../../../core/auth/auth.service';
 import { getGoogleOAuthErrorMessage } from '../../../core/auth/google-auth.util';
 import { MOCK_AUTH_ACCOUNTS } from '../../../core/auth/auth-mock.data';
 import { USER_HOME_ROUTE } from '../../../core/routing/app-routes';
+import { BrandMarkComponent } from '../../../shared/brand-mark/brand-mark.component';
 import { environment } from '../../../../environments/environment';
 
 /** Conta seed do backend (Development). */
@@ -36,6 +37,7 @@ const BACKEND_DEV_ACCOUNT = {
     MatFormFieldModule,
     MatInputModule,
     MatDividerModule,
+    BrandMarkComponent,
   ],
   templateUrl: './login.component.html',
   styleUrl: './login.component.scss',

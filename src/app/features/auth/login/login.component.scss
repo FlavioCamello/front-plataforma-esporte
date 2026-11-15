@@ -1,10 +1,23 @@
-.login-page {
+:host {
+  display: block;
+  min-height: 100%;
+}
+
+.login-page.app-page {
+  min-height: 100%;
   background: var(--surface-gradient);
   padding-top: calc(var(--app-page-padding) + var(--app-safe-top));
 }
 
 .login-card {
   max-width: 440px;
+}
+
+.auth-brand {
+  display: flex;
+  justify-content: center;
+  margin: 0.25rem 0 1rem;
+  text-decoration: none;
 }
 
 .login-form {

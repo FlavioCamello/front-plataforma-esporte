@@ -129,6 +129,13 @@
               <td mat-cell *matCellDef="let row">{{ row.shirtSize || '—' }}</td>
             </ng-container>
 
+            <ng-container matColumnDef="answers">
+              <th mat-header-cell *matHeaderCellDef>Questionário</th>
+              <td mat-cell *matCellDef="let row">
+                <div class="answers">{{ answersLabel(row) }}</div>
+              </td>
+            </ng-container>
+
             <ng-container matColumnDef="priceSnapshot">
               <th mat-header-cell *matHeaderCellDef>Preço</th>
               <td mat-cell *matCellDef="let row">

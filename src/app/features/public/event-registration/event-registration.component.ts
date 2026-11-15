@@ -1,18 +1,20 @@
-import { CurrencyPipe, DatePipe, isPlatformBrowser } from '@angular/common';
-import { Component, OnInit, PLATFORM_ID, computed, inject, signal } from '@angular/core';
+import { CurrencyPipe, DatePipe } from '@angular/common';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { firstValueFrom } from 'rxjs';
 
 import { AuthService } from '../../../core/auth/auth.service';
 import { getAuthErrorMessage, mapAuthHttpError } from '../../../core/auth/auth-http.util';
+import { formatEventDateRange } from '../../../core/events/event-date-range';
 import { PublicEventsApiService } from '../../../core/events/public-events-api.service';
-import { PublicEventDetail } from '../../../core/models/event.model';
+import { CustomFormQuestion, PublicEventDetail } from '../../../core/models/event.model';
 import { RegistrationsApiService } from '../../../core/registrations/registrations-api.service';
 import { PUBLIC_EVENTS_ROUTE, USER_HOME_ROUTE } from '../../../core/routing/app-routes';
 
@@ -27,6 +29,7 @@ import { PUBLIC_EVENTS_ROUTE, USER_HOME_ROUTE } from '../../../core/routing/app-
     MatCardModule,
     MatButtonModule,
     MatFormFieldModule,
+    MatInputModule,
     MatSelectModule,
     MatCheckboxModule,
   ],
@@ -40,7 +43,6 @@ export class EventRegistrationComponent implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly publicApi = inject(PublicEventsApiService);
   private readonly registrationsApi = inject(RegistrationsApiService);
-  private readonly platformId = inject(PLATFORM_ID);
 
   readonly publicEventsRoute = PUBLIC_EVENTS_ROUTE;
   readonly myRegistrationsRoute = `${USER_HOME_ROUTE}/inscricoes`;
@@ -65,6 +67,14 @@ export class EventRegistrationComponent implements OnInit {
     () => this.event()?.modules?.shirtSizeChart?.enabled === true
   );
 
+  readonly dateRange = computed(() => {
+    const ev = this.event();
+    return ev ? formatEventDateRange(ev.startsAt, ev.endsAt) : '';
+  });
+
+  readonly eventSoldOut = computed(() => this.event()?.soldOut === true);
+  readonly isOrganizer = computed(() => this.auth.currentUser()?.accountType === 'Organizer');
+
   readonly availableCategories = computed(() => {
     const ev = this.event();
     const proofId = this.selectedProofId();
@@ -77,6 +87,25 @@ export class EventRegistrationComponent implements OnInit {
     }
     return ev.categories.filter((c) => proof.categoryIds.includes(c.id!));
   });
+
+  readonly allCategoriesSoldOut = computed(() => {
+    const cats = this.availableCategories();
+    return cats.length > 0 && cats.every((c) => c.soldOut);
+  });
+
+  readonly visibleQuestions = computed<CustomFormQuestion[]>(() => {
+    const ev = this.event();
+    const proofId = this.selectedProofId();
+    const form = ev?.modules?.customForm;
+    if (!ev || !proofId || !form?.enabled) {
+      return [];
+    }
+    return (form.questions ?? []).filter(
+      (q) => !q.proofIds?.length || q.proofIds.includes(proofId)
+    );
+  });
+
+  readonly answers = signal<Record<string, string[]>>({});
 
   readonly shirtSizes = computed(() => this.event()?.modules?.shirtSizeChart?.sizes ?? []);
 
@@ -118,15 +147,55 @@ export class EventRegistrationComponent implements OnInit {
     };
   });
 
-  private resolveCurrentLot(lots: { price: number; startsAt: string; endsAt: string }[]) {
+  private resolveCurrentLot(
+    lots: { price: number; startsAt: string; endsAt: string; soldOut?: boolean }[]
+  ) {
     const now = Date.now();
-    return lots
-      .filter((lot) => {
-        const starts = new Date(lot.startsAt).getTime();
-        const ends = new Date(lot.endsAt).getTime();
-        return starts <= now && now <= ends;
-      })
-      .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime())[0];
+    let previousSoldOut = false;
+    for (const lot of lots) {
+      const starts = new Date(lot.startsAt).getTime();
+      const ends = new Date(lot.endsAt).getTime();
+      if (now > ends) {
+        continue;
+      }
+      if (lot.soldOut) {
+        previousSoldOut = true;
+        continue;
+      }
+      if (now >= starts || previousSoldOut) {
+        return lot;
+      }
+      return undefined;
+    }
+    return undefined;
+  }
+
+  textValue(questionId: string): string {
+    return this.answers()[questionId]?.[0] ?? '';
+  }
+
+  setText(questionId: string, value: string): void {
+    this.answers.update((current) => ({ ...current, [questionId]: value.trim() ? [value] : [] }));
+  }
+
+  setSingle(questionId: string, value: string): void {
+    this.answers.update((current) => ({ ...current, [questionId]: value ? [value] : [] }));
+  }
+
+  isMultiChecked(questionId: string, option: string): boolean {
+    return (this.answers()[questionId] ?? []).includes(option);
+  }
+
+  toggleMulti(questionId: string, option: string, checked: boolean): void {
+    this.answers.update((current) => {
+      const next = new Set(current[questionId] ?? []);
+      if (checked) {
+        next.add(option);
+      } else {
+        next.delete(option);
+      }
+      return { ...current, [questionId]: [...next] };
+    });
   }
 
   private applyDiscount(price: number, discountPercent: number): number {
@@ -148,6 +217,7 @@ export class EventRegistrationComponent implements OnInit {
     this.form.controls.proofId.valueChanges.subscribe((value) => {
       this.selectedProofId.set(value);
       this.form.controls.categoryId.setValue('');
+      this.answers.set({});
     });
 
     this.form.controls.categoryId.valueChanges.subscribe((value) => {
@@ -159,8 +229,26 @@ export class EventRegistrationComponent implements OnInit {
 
   async submit(): Promise<void> {
     const ev = this.event();
-    if (!ev || this.form.invalid || this.submitting()) {
+    if (!ev || this.isOrganizer() || this.form.invalid || this.submitting() || ev.soldOut) {
       this.form.markAllAsTouched();
+      if (ev?.soldOut) {
+        this.errorMessage.set('Vagas esgotadas para este evento.');
+      }
+      return;
+    }
+
+    const raw = this.form.getRawValue();
+    const selectedCategory = ev.categories.find((c) => c.id === raw.categoryId);
+    if (selectedCategory?.soldOut) {
+      this.errorMessage.set('Vagas esgotadas para esta categoria.');
+      return;
+    }
+
+    const missing = this.visibleQuestions().find(
+      (q) => q.required && (this.answers()[q.id!] ?? []).length === 0
+    );
+    if (missing) {
+      this.errorMessage.set(`'${missing.title}' é obrigatória.`);
       return;
     }
 
@@ -168,7 +256,6 @@ export class EventRegistrationComponent implements OnInit {
     this.errorMessage.set(null);
     this.successMessage.set(null);
 
-    const raw = this.form.getRawValue();
     try {
       const created = await firstValueFrom(
         this.registrationsApi.create(ev.id, {
@@ -176,12 +263,16 @@ export class EventRegistrationComponent implements OnInit {
           categoryId: raw.categoryId,
           regulationAccepted: raw.regulationAccepted,
           shirtSize: this.shirtRequired() ? raw.shirtSize : null,
+          answers: this.visibleQuestions().map((q) => ({
+            questionId: q.id!,
+            title: q.title,
+            values: this.answers()[q.id!] ?? [],
+          })),
         })
       ).catch((err) => mapAuthHttpError(err, 'Não foi possível concluir a inscrição.'));
 
-      if (created.checkoutUrl && isPlatformBrowser(this.platformId)) {
-        this.successMessage.set('Redirecionando para o pagamento…');
-        window.location.href = created.checkoutUrl;
+      if (created.status === 'Pending') {
+        await this.router.navigate(['/e', this.routeSlug, 'pagamento', created.id]);
         return;
       }
 

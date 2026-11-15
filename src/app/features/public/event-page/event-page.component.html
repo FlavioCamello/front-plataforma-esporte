@@ -8,21 +8,25 @@
     <a routerLink="/e">Ver eventos</a>
   </div>
 } @else {
-  <div class="page">
+  <div class="page" [class.preview]="isPreview">
+    @if (isPreview) {
+      <div class="preview-banner" role="status">
+        @if (mode === 'owner-preview') {
+          <strong>Prévia — só você está vendo</strong>
+          <a [routerLink]="reviewPath">Voltar à revisão</a>
+        } @else {
+          <strong>Prévia — link temporário, não divulgue</strong>
+        }
+      </div>
+    }
     <header class="topbar">
-      <a routerLink="/e" class="back">← Eventos</a>
+      @if (mode === 'owner-preview') {
+        <a [routerLink]="reviewPath" class="back">← Revisão</a>
+      } @else {
+        <a routerLink="/e" class="back">← Eventos</a>
+      }
       <div class="topbar-right">
         <span class="org">{{ event()!.organizerName }}</span>
-        @if (isLoggedIn()) {
-          <a [routerLink]="homeRoute" class="area-link">{{ areaLabel() }}</a>
-        } @else {
-          <a
-            routerLink="/auth/login"
-            class="area-link"
-            [queryParams]="{ returnUrl: '/e/' + event()!.slug }"
-            >Entrar</a
-          >
-        }
       </div>
     </header>
 
@@ -30,7 +34,9 @@
       <div class="hero-shade">
         <p class="eyebrow">
           {{ sportLabel(event()!.sportType) }}
-          @if (event()!.registrationOpen) {
+          @if (eventSoldOut()) {
+            <span class="pill sold-out">Esgotado</span>
+          } @else if (registrationOpen()) {
             <span class="pill open">Inscrições abertas</span>
           } @else {
             <span class="pill closed">Inscrições encerradas</span>
@@ -38,8 +44,8 @@
         </p>
         <h1>{{ event()!.name }}</h1>
         <p class="hero-sub">
-          @if (event()!.startsAt) {
-            {{ event()!.startsAt | date: "EEEE, d 'de' MMMM '·' HH:mm" }}
+          @if (dateRange()) {
+            {{ dateRange() }}
           }
           @if (event()!.venueName) {
             <span> · {{ event()!.venueName }}</span>
@@ -49,9 +55,20 @@
     </section>
 
     <main class="content">
+      @if (kitPickupText(); as kit) {
+        <section class="block kit-highlight">
+          <h2>Retirada do kit</h2>
+          <p class="body-text">{{ kit }}</p>
+        </section>
+      }
+
       <section class="block">
         <h2>Sobre</h2>
-        <p class="body-text">{{ event()!.description || 'Sem descrição.' }}</p>
+        <app-safe-markdown
+          class="body-md"
+          [source]="event()!.description"
+          emptyFallback="Sem descrição."
+        />
       </section>
 
       <section class="block facts">
@@ -64,7 +81,14 @@
               @if (addressLine()) {
                 <span>{{ addressLine() }}</span>
               }
+              @if (mapHref(); as href) {
+                <a class="ext" [href]="href" target="_blank" rel="noopener">Abrir no mapa</a>
+              }
             </dd>
+          </div>
+          <div>
+            <dt>Quando</dt>
+            <dd>{{ dateRange() || '—' }}</dd>
           </div>
           <div>
             <dt>Inscrições até</dt>
@@ -85,7 +109,12 @@
           <ul class="chips">
             @for (cat of event()!.categories; track cat.id) {
               <li>
-                <strong>{{ cat.name }}</strong>
+                <div class="chip-head">
+                  <strong>{{ cat.name }}</strong>
+                  @if (cat.soldOut) {
+                    <span class="pill sold-out">Esgotado</span>
+                  }
+                </div>
                 <span
                   >{{ genderLabel(cat.gender)
                   }}{{
@@ -107,6 +136,9 @@
             @for (proof of event()!.proofs; track proof.id) {
               <article class="proof">
                 <h3>{{ proof.name }}</h3>
+                @if (proof.startsAt) {
+                  <p class="muted">Largada: {{ proof.startsAt | date: 'dd/MM/yyyy HH:mm' }}</p>
+                }
                 @if (proof.capacity != null) {
                   <p class="muted">{{ proof.capacity }} vagas</p>
                 }
@@ -119,6 +151,9 @@
                       <li>
                         <div>
                           <strong>{{ lot.name }}</strong>
+                          @if (lot.soldOut) {
+                            <span class="pill sold-out">Esgotado</span>
+                          }
                           <span class="muted"
                             >{{ lot.startsAt | date: 'dd/MM' }} –
                             {{ lot.endsAt | date: 'dd/MM' }}</span
@@ -202,18 +237,11 @@
         </section>
       }
 
-      @if (event()!.modules.kitPickup.enabled && event()!.modules.kitPickup.description) {
-        <section class="block">
-          <h2>Retirada do kit</h2>
-          <p class="body-text">{{ event()!.modules.kitPickup.description }}</p>
-        </section>
-      }
-
       @if (event()!.regulationText || event()!.regulationUrl) {
         <section class="block">
           <h2>Regulamento</h2>
           @if (event()!.regulationText) {
-            <p class="body-text">{{ event()!.regulationText }}</p>
+            <app-safe-markdown class="body-md" [source]="event()!.regulationText" />
           }
           @if (event()!.regulationUrl) {
             <a class="ext" [href]="event()!.regulationUrl" target="_blank" rel="noopener"
@@ -224,10 +252,12 @@
       }
 
       @for (section of event()!.customSections ?? []; track section.id) {
-        <section class="block">
-          <h2>{{ section.title }}</h2>
-          <p class="body-text">{{ section.content }}</p>
-        </section>
+        @if (section.content.trim()) {
+          <section class="block">
+            <h2>{{ section.title }}</h2>
+            <app-safe-markdown class="body-md" [source]="section.content" />
+          </section>
+        }
       }
 
       <section class="block">
@@ -307,14 +337,20 @@
     </main>
 
     <div class="cta-bar">
-      <button
-        type="button"
-        class="cta"
-        [disabled]="!event()!.registrationOpen"
-        (click)="onCtaClick()"
-      >
-        {{ ctaLabel() }}
-      </button>
+      @if (organizerBlocked()) {
+        <p class="cta-note">
+          Esta conta é de organizador e não pode se inscrever. Entre com um atleta para participar.
+        </p>
+      } @else {
+        <button
+          type="button"
+          class="cta"
+          [disabled]="ctaDisabled()"
+          (click)="onCtaClick()"
+        >
+          {{ ctaLabel() }}
+        </button>
+      }
     </div>
   </div>
 }

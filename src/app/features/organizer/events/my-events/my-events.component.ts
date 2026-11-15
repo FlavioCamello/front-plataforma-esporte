@@ -10,11 +10,8 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
 
 import { getAuthErrorMessage, mapAuthHttpError } from '../../../../core/auth/auth-http.util';
+import { formatEventDateRange } from '../../../../core/events/event-date-range';
 import { EventsApiService } from '../../../../core/events/events-api.service';
-import {
-  PublishValidationError,
-  mapPublishHttpError,
-} from '../../../../core/events/publish-error';
 import { EventListItem, EventStatus } from '../../../../core/models/event.model';
 import { USER_HOME_ROUTE } from '../../../../core/routing/app-routes';
 
@@ -41,16 +38,18 @@ export class MyEventsComponent implements OnInit {
   readonly createRoute = `${USER_HOME_ROUTE}/eventos/novo`;
   readonly displayedColumns = ['name', 'status', 'startsAt', 'place', 'updatedAtUtc', 'actions'];
 
+  dateRange(row: EventListItem): string {
+    return formatEventDateRange(row.startsAt, row.endsAt);
+  }
+
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
   readonly items = signal<EventListItem[]>([]);
   readonly total = signal(0);
   readonly statusFilter = signal<EventStatus | ''>('');
-  readonly publishingId = signal<string | null>(null);
   readonly closingId = signal<string | null>(null);
   readonly cancellingId = signal<string | null>(null);
-  readonly publishErrors = signal<{ id: string; errors: string[] } | null>(null);
 
   readonly statusOptions: Array<{ value: EventStatus | ''; label: string }> = [
     { value: '', label: 'Todos' },
@@ -70,23 +69,11 @@ export class MyEventsComponent implements OnInit {
   }
 
   openEventRoute(id: string): string {
-    return `${this.homeRoute}/eventos/${id}/continuar`;
-  }
-
-  registrationsRoute(id: string): string {
-    return `${this.homeRoute}/eventos/${id}/inscritos`;
-  }
-
-  canViewRegistrations(status: EventStatus): boolean {
-    return status === 'Published' || status === 'Closed' || status === 'Cancelled';
+    return `${this.homeRoute}/eventos/${id}`;
   }
 
   statusLabel(status: EventStatus): string {
     return this.statusOptions.find((o) => o.value === status)?.label ?? status;
-  }
-
-  canPublish(status: EventStatus): boolean {
-    return status === 'Draft' || status === 'Published';
   }
 
   canClose(status: EventStatus): boolean {
@@ -98,35 +85,7 @@ export class MyEventsComponent implements OnInit {
   }
 
   isBusy(id: string): boolean {
-    return (
-      this.publishingId() === id || this.closingId() === id || this.cancellingId() === id
-    );
-  }
-
-  dismissPublishErrors(): void {
-    this.publishErrors.set(null);
-  }
-
-  async publish(id: string): Promise<void> {
-    this.errorMessage.set(null);
-    this.successMessage.set(null);
-    this.publishErrors.set(null);
-    this.publishingId.set(id);
-    try {
-      const updated = await firstValueFrom(this.eventsApi.publish(id)).catch((err) =>
-        mapPublishHttpError(err)
-      );
-      this.successMessage.set(`"${updated.name}" publicado com sucesso.`);
-      await this.load();
-    } catch (error) {
-      if (error instanceof PublishValidationError) {
-        this.publishErrors.set({ id, errors: error.errors });
-      } else {
-        this.errorMessage.set(getAuthErrorMessage(error));
-      }
-    } finally {
-      this.publishingId.set(null);
-    }
+    return this.closingId() === id || this.cancellingId() === id;
   }
 
   async close(id: string, name: string): Promise<void> {
@@ -140,7 +99,6 @@ export class MyEventsComponent implements OnInit {
 
     this.errorMessage.set(null);
     this.successMessage.set(null);
-    this.publishErrors.set(null);
     this.closingId.set(id);
     try {
       const updated = await firstValueFrom(this.eventsApi.close(id)).catch((err) =>
@@ -166,7 +124,6 @@ export class MyEventsComponent implements OnInit {
 
     this.errorMessage.set(null);
     this.successMessage.set(null);
-    this.publishErrors.set(null);
     this.cancellingId.set(id);
     try {
       const updated = await firstValueFrom(this.eventsApi.cancel(id)).catch((err) =>

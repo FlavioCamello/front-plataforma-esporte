@@ -1,0 +1,10 @@
+<span class="lockup" [class.on-dark]="tone() === 'dark'" [attr.aria-label]="word() ? null : 'Participando'">
+  <svg viewBox="0 0 64 64" aria-hidden="true">
+    <rect class="stem" x="4" y="8" width="16" height="42" rx="8" />
+    <path class="arc" d="M20 16 C48 6 52 34 34 50" />
+    <circle class="dot" cx="48" cy="52" r="4.5" />
+  </svg>
+  @if (word()) {
+    <span class="word">Participando</span>
+  }
+</span>

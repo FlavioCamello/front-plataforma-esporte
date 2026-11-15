@@ -12,8 +12,11 @@
     </button>
   </header>
 
-  <mat-card class="auth-card">
-    <mat-card-header>
+    <mat-card class="auth-card">
+      <a routerLink="/" class="auth-brand" aria-label="Participando">
+        <app-brand-mark />
+      </a>
+      <mat-card-header>
       <mat-card-title>Completar perfil</mat-card-title>
       <mat-card-subtitle>
         @if (userName) {

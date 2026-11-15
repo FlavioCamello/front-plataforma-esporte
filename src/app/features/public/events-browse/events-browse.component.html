@@ -1,18 +1,4 @@
 <div class="browse">
-  <header class="browse-top">
-    <a routerLink="/" class="brand">Plataforma Esporte</a>
-    @if (isLoggedIn()) {
-      <a [routerLink]="homeRoute" class="link-quiet">{{ areaLabel() }}</a>
-    } @else {
-      <a
-        routerLink="/auth/login"
-        class="link-quiet"
-        [queryParams]="{ returnUrl: publicEventsRoute }"
-        >Entrar</a
-      >
-    }
-  </header>
-
   <section class="hero-strip">
     <h1>Próximos eventos</h1>
     <p>Escolha sua prova, conheça o percurso e prepare-se para o dia.</p>
@@ -82,8 +68,8 @@
               <p class="meta">{{ sportLabel(item.sportType) }} · {{ item.organizerName }}</p>
               <h2>{{ item.name }}</h2>
               <p class="when">
-                @if (item.startsAt) {
-                  {{ item.startsAt | date: 'dd MMM yyyy · HH:mm' }}
+                @if (dateRange(item); as when) {
+                  {{ when }}
                 } @else {
                   Data a confirmar
                 }

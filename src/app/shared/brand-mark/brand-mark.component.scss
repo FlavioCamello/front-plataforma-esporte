@@ -1,0 +1,50 @@
+.lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--brand-ink);
+  line-height: 1;
+}
+
+.lockup.on-dark {
+  color: var(--brand-sand);
+}
+
+svg {
+  width: 2rem;
+  height: 2rem;
+  display: block;
+  flex: none;
+}
+
+.stem {
+  fill: var(--brand-ink);
+}
+
+.on-dark .stem {
+  fill: var(--brand-sand);
+}
+
+.arc {
+  fill: none;
+  stroke: var(--brand-pulse);
+  stroke-width: 16;
+  stroke-linecap: round;
+}
+
+.dot {
+  fill: var(--brand-court);
+  stroke: var(--brand-ink);
+  stroke-width: 1.5;
+}
+
+.on-dark .dot {
+  stroke: none;
+}
+
+.word {
+  font-family: var(--brand-font-title);
+  font-weight: 700;
+  font-size: 1.45rem;
+  letter-spacing: 0.01em;
+}

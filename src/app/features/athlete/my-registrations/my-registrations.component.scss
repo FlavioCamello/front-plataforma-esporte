@@ -2,6 +2,9 @@
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  width: 100%;
+  max-width: 1120px;
+  margin-inline: auto;
 }
 
 .page-head {
@@ -20,12 +23,12 @@
 
   p {
     margin: 0.25rem 0 0;
-    color: rgba(11, 20, 18, 0.65);
+    color: rgba(19, 32, 51, 0.65);
   }
 }
 
 .muted {
-  color: rgba(11, 20, 18, 0.6);
+  color: rgba(19, 32, 51, 0.6);
 }
 
 .banner-error {
@@ -40,7 +43,7 @@
   margin: 0;
   padding: 0.75rem 1rem;
   border-radius: 12px;
-  background: rgba(42, 157, 143, 0.12);
+  background: rgba(19, 32, 51, 0.12);
   color: var(--brand-ink, #0b1412);
   line-height: 1.45;
 }
@@ -72,9 +75,18 @@
   padding: 0;
   display: grid;
   gap: 1rem;
+  grid-template-columns: 1fr;
+}
 
-  @media (min-width: 720px) {
+@media (min-width: 720px) {
+  .cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1100px) {
+  .cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -110,22 +122,22 @@
   font-weight: 600;
   padding: 0.2rem 0.55rem;
   border-radius: 999px;
-  background: rgba(42, 157, 143, 0.15);
+  background: rgba(19, 32, 51, 0.15);
   color: var(--brand-teal-dark, #1d7a6f);
 
   &[data-status='Pending'] {
-    background: rgba(232, 93, 4, 0.15);
+    background: rgba(255, 78, 58, 0.15);
     color: var(--brand-orange-dark, #c44d03);
   }
 
   &[data-status='Cancelled'] {
-    background: rgba(11, 20, 18, 0.08);
-    color: rgba(11, 20, 18, 0.55);
+    background: rgba(19, 32, 51, 0.08);
+    color: rgba(19, 32, 51, 0.55);
   }
 }
 
 .meta {
   margin: 0 0 0.5rem;
   font-size: 0.9rem;
-  color: rgba(11, 20, 18, 0.65);
+  color: rgba(19, 32, 51, 0.65);
 }

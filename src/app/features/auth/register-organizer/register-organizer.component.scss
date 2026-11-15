@@ -1,4 +1,10 @@
-.auth-page {
+:host {
+  display: block;
+  min-height: 100%;
+}
+
+.auth-page.app-page {
+  min-height: 100%;
   background: var(--surface-gradient);
   padding-top: calc(var(--app-page-padding) + var(--app-safe-top));
   align-items: flex-start;
@@ -8,6 +14,13 @@
   max-width: 480px;
   margin-top: 0.5rem;
   margin-bottom: 0.5rem;
+}
+
+.auth-brand {
+  display: flex;
+  justify-content: center;
+  margin: 0.25rem 0 1rem;
+  text-decoration: none;
 }
 
 .auth-form {

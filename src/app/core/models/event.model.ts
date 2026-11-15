@@ -22,14 +22,16 @@ export interface EventAddress {
 export interface EventCategoryInput {
   id?: string | null;
   name: string;
-  format?: string | null;
-  activityType?: string | null;
   gender: CategoryGender;
   minAge?: number | null;
   maxAge?: number | null;
   capacity?: number | null;
+  registrationOpensAt?: string | null;
+  registrationClosesAt?: string | null;
   /** UC-26 — desconto (0–100) aplicado ao preço do lote na inscrição desta categoria. */
   discountPercent?: number | null;
+  /** UC-40 — público: categoria atingiu o teto. Sem vagas restantes no DTO. */
+  soldOut?: boolean;
 }
 
 export interface EventLotInput {
@@ -38,6 +40,12 @@ export interface EventLotInput {
   price: number;
   startsAt: string;
   endsAt: string;
+  /** UC-43 — teto do lote; null = só data. Público omite o número. */
+  capacity?: number | null;
+  /** UC-43 — público: lote atingiu o teto. Sem vagas restantes no DTO. */
+  soldOut?: boolean;
+  /** UC-44 — organizador: lote já tem inscrição ativa e não pode ser removido. */
+  hasRegistrations?: boolean;
 }
 
 export interface EventProofInput {
@@ -46,6 +54,8 @@ export interface EventProofInput {
   routeImageUrl?: string | null;
   capacity?: number | null;
   categoryIds: string[];
+  /** UC-50 — horário de largada desta prova; null = usa a data do evento. */
+  startsAt?: string | null;
   /** Lotes de preço deste percurso (janelas de vigência). */
   lots: EventLotInput[];
 }
@@ -63,6 +73,7 @@ export interface EventListItem {
   slug: string;
   sportType: string;
   startsAt?: string | null;
+  endsAt?: string | null;
   timezone: string;
   status: EventStatus;
   venueName?: string | null;
@@ -90,10 +101,6 @@ export interface ListMyEventsParams {
 
 export interface EventModules {
   route: { enabled: boolean; description?: string | null };
-  routeImages: {
-    enabled: boolean;
-    entries: Array<{ title: string; imageUrl: string }>;
-  };
   athleteKit: {
     enabled: boolean;
     items: string[];
@@ -112,7 +119,24 @@ export interface EventModules {
   };
   discounts: { enabled: boolean };
   services: { enabled: boolean };
-  customForm: { enabled: boolean };
+  customForm: CustomFormModule;
+}
+
+export type CustomFormQuestionType = 'Text' | 'SingleChoice' | 'MultipleChoice' | 'Dropdown';
+
+export interface CustomFormQuestion {
+  id?: string | null;
+  title: string;
+  type: CustomFormQuestionType;
+  required: boolean;
+  maxLength?: number | null;
+  options: string[];
+  proofIds: string[];
+}
+
+export interface CustomFormModule {
+  enabled: boolean;
+  questions: CustomFormQuestion[];
 }
 
 export interface CreateEventRequest {
@@ -122,6 +146,7 @@ export interface CreateEventRequest {
   description?: string | null;
   bannerUrl?: string | null;
   startsAt?: string | null;
+  endsAt?: string | null;
   timezone?: string | null;
   registrationClosesAt?: string | null;
   venueName?: string | null;
@@ -132,6 +157,8 @@ export interface CreateEventRequest {
   contactEmail?: string | null;
   contactPhone?: string | null;
   modules: EventModules;
+  capacity?: number | null;
+  mapUrl?: string | null;
 }
 
 /** PATCH UC-14 — front envia snapshot editável (modules completo quando enviado). */
@@ -141,6 +168,7 @@ export interface UpdateEventRequest {
   sportType?: string | null;
   bannerUrl?: string | null;
   startsAt?: string | null;
+  endsAt?: string | null;
   registrationClosesAt?: string | null;
   venueName?: string | null;
   address?: EventAddress | null;
@@ -152,6 +180,8 @@ export interface UpdateEventRequest {
   contactPhone?: string | null;
   modules?: EventModules;
   customSections?: EventCustomSectionInput[] | null;
+  capacity?: number | null;
+  mapUrl?: string | null;
 }
 
 export interface EventDetail {
@@ -163,6 +193,7 @@ export interface EventDetail {
   description?: string | null;
   bannerUrl?: string | null;
   startsAt?: string | null;
+  endsAt?: string | null;
   timezone: string;
   registrationClosesAt?: string | null;
   venueName?: string | null;
@@ -179,6 +210,50 @@ export interface EventDetail {
   createdAtUtc: string;
   updatedAtUtc?: string | null;
   customSections?: Array<EventCustomSectionInput & { id: string }> | null;
+  /** UC-38 — validade do link de prévia (pode já ter expirado); null = sem link. */
+  previewLinkExpiresAt?: string | null;
+  /** UC-50 — teto geral (só no painel; o público recebe SoldOut). */
+  capacity?: number | null;
+  mapUrl?: string | null;
+}
+
+/** UC-38 — token em claro só vem na criação do link. */
+export interface PreviewLink {
+  token: string;
+  expiresAt: string;
+}
+
+/** UC-37 — seções do painel do evento com checklist calculado no back. */
+export type EventReadinessSectionKey =
+  | 'general'
+  | 'content'
+  | 'categories'
+  | 'proofs'
+  | 'kit'
+  | 'questionnaire'
+  | 'settings';
+
+export type EventReadinessStatus = 'complete' | 'pending' | 'optional';
+
+export interface EventReadinessSection {
+  key: EventReadinessSectionKey;
+  status: EventReadinessStatus;
+  errors: string[];
+}
+
+/** UC-38 — avisos de vigência dos lotes; não bloqueiam a publicação. */
+export type EventReadinessWarningCode = 'gap' | 'overlap' | 'ends_after_deadline' | 'no_active_lot';
+
+export interface EventReadinessWarning {
+  code: EventReadinessWarningCode;
+  proofId?: string | null;
+  message: string;
+}
+
+export interface EventReadiness {
+  canPublish: boolean;
+  sections: EventReadinessSection[];
+  warnings: EventReadinessWarning[];
 }
 
 /** UC-18 — detalhe público (sem organizerId interno). */
@@ -190,6 +265,7 @@ export interface PublicEventDetail {
   description?: string | null;
   bannerUrl?: string | null;
   startsAt?: string | null;
+  endsAt?: string | null;
   timezone: string;
   registrationClosesAt?: string | null;
   venueName?: string | null;
@@ -206,6 +282,9 @@ export interface PublicEventDetail {
   organizerName: string;
   registrationOpen: boolean;
   customSections?: Array<EventCustomSectionInput & { id: string }> | null;
+  mapUrl?: string | null;
+  /** UC-50 — teto do evento atingido. Sem número de vagas restantes. */
+  soldOut?: boolean;
 }
 
 export interface PublicEventListItem {
@@ -215,6 +294,7 @@ export interface PublicEventListItem {
   sportType: string;
   bannerUrl?: string | null;
   startsAt?: string | null;
+  endsAt?: string | null;
   venueName?: string | null;
   city?: string | null;
   state?: string | null;
@@ -234,14 +314,13 @@ export interface PagedPublicEventList {
 export function createDisabledModules(): EventModules {
   return {
     route: { enabled: false, description: null },
-    routeImages: { enabled: false, entries: [] },
     athleteKit: { enabled: false, items: [], extrasNote: null },
     shirtSizeChart: { enabled: false, sizes: [], measurementHint: null },
     kitPickup: { enabled: false, description: null },
     socialLinks: { enabled: false, websiteUrl: null, instagramUrl: null },
     discounts: { enabled: false },
     services: { enabled: false },
-    customForm: { enabled: false },
+    customForm: { enabled: false, questions: [] },
   };
 }
 

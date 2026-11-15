@@ -1,0 +1,295 @@
+@if (loading()) {
+  <section class="panel">
+    <p>Carregando revisão…</p>
+  </section>
+} @else if (!event()) {
+  <section class="panel">
+    <p class="error" role="alert">{{ errorMessage() }}</p>
+    <a mat-button [routerLink]="basePath">Voltar ao painel</a>
+  </section>
+} @else {
+  <a mat-button class="back-link" [routerLink]="basePath">
+    <mat-icon>arrow_back</mat-icon>
+    Painel do evento
+  </a>
+
+  <header class="panel header">
+    <div class="header-top">
+      <span class="status" [attr.data-status]="status()">{{ statusLabel() }}</span>
+    </div>
+    <h1>Revisão e publicação</h1>
+    <p class="hint">Confira tudo antes de abrir as inscrições. Os avisos não impedem publicar.</p>
+
+    @if (errorMessage()) {
+      <p class="error" role="alert">{{ errorMessage() }}</p>
+    }
+    @if (successMessage()) {
+      <p class="success" role="status">{{ successMessage() }}</p>
+    }
+    @if (publishErrors().length > 0) {
+      <div class="error" role="alert">
+        <strong>Não foi possível publicar. Corrija os itens:</strong>
+        <ul>
+          @for (msg of publishErrors(); track msg) {
+            <li>{{ msg }}</li>
+          }
+        </ul>
+      </div>
+    }
+
+    <div class="header-actions">
+      <a mat-stroked-button [routerLink]="basePath + '/previa'">
+        <mat-icon>visibility</mat-icon>
+        Ver prévia
+      </a>
+      @if (showPublish()) {
+        <button
+          mat-flat-button
+          color="accent"
+          type="button"
+          (click)="publish()"
+          [disabled]="publishing() || !readiness()?.canPublish"
+        >
+          <mat-icon>publish</mat-icon>
+          {{
+            publishing() ? 'Publicando…' : status() === 'Published' ? 'Republicar' : 'Publicar'
+          }}
+        </button>
+      }
+    </div>
+    @if (showPublish() && !readiness()?.canPublish) {
+      <p class="hint tight">Resolva as pendências abaixo para liberar a publicação.</p>
+    }
+  </header>
+
+  @if (pending().length > 0) {
+    <section class="panel block" aria-labelledby="pending-title">
+      <h2 id="pending-title"><mat-icon aria-hidden="true">error</mat-icon> Pendências</h2>
+      <ul class="pending">
+        @for (p of pending(); track p.title) {
+          <li>
+            <a [routerLink]="p.path">
+              <strong>{{ p.title }}</strong>
+              <mat-icon aria-hidden="true">chevron_right</mat-icon>
+            </a>
+            <ul>
+              @for (msg of p.errors; track msg) {
+                <li>{{ msg }}</li>
+              }
+            </ul>
+          </li>
+        }
+      </ul>
+    </section>
+  }
+
+  @if (warnings().length > 0) {
+    <section class="panel block warn-block" aria-labelledby="warn-title">
+      <h2 id="warn-title"><mat-icon aria-hidden="true">warning</mat-icon> Avisos de vigência</h2>
+      <ul class="warn-list">
+        @for (w of warnings(); track $index) {
+          <li>{{ w.message }}</li>
+        }
+      </ul>
+      <a mat-button [routerLink]="basePath + '/provas'">Ajustar lotes</a>
+    </section>
+  }
+
+  <section class="panel block" aria-labelledby="summary-title">
+    <h2 id="summary-title">Resumo</h2>
+    <dl class="facts">
+      <div>
+        <dt>Evento</dt>
+        <dd>{{ event()!.name }}</dd>
+      </div>
+      <div>
+        <dt>Data e largada</dt>
+        <dd>{{ dateRange() || '—' }}</dd>
+      </div>
+      <div>
+        <dt>Local</dt>
+        <dd>{{ addressLine() || '—' }}</dd>
+      </div>
+      <div>
+        <dt>Inscrições até</dt>
+        <dd>
+          {{
+            event()!.registrationClosesAt
+              ? (event()!.registrationClosesAt | date: 'dd/MM/yyyy HH:mm')
+              : '—'
+          }}
+        </dd>
+      </div>
+      <div>
+        <dt>Contato</dt>
+        <dd>{{ contactLine() || '—' }}</dd>
+      </div>
+      <div>
+        <dt>Regulamento</dt>
+        <dd>{{ regulationLabel() }}</dd>
+      </div>
+    </dl>
+    <a mat-button [routerLink]="basePath + '/geral'">Editar informações gerais</a>
+  </section>
+
+  <section class="panel block" aria-labelledby="proofs-title">
+    <h2 id="proofs-title">Provas e lotes</h2>
+    @for (proof of event()!.proofs ?? []; track proof.id) {
+      <article class="proof">
+        <header class="proof-head">
+          <h3>{{ proof.name }}</h3>
+          <span class="muted">
+            {{ proof.capacity != null ? proof.capacity + ' vagas' : 'Sem limite de vagas' }}
+            @if (proof.startsAt) {
+              · largada {{ proof.startsAt | date: 'dd/MM HH:mm' }}
+            }
+          </span>
+        </header>
+        @if (proof.categoryIds.length) {
+          <p class="muted">
+            Categorias:
+            @for (id of proof.categoryIds; track id; let last = $last) {
+              {{ categoryName(id) }}{{ last ? '' : ', ' }}
+            }
+          </p>
+        } @else {
+          <p class="muted">Nenhuma categoria vinculada.</p>
+        }
+
+        @if (proof.lots.length) {
+          <ul class="lots">
+            @for (lot of proof.lots; track lot.id) {
+              <li>
+                <div>
+                  <strong>{{ lot.name }}</strong>
+                  <span class="muted">
+                    {{ lot.startsAt | date: 'dd/MM/yy HH:mm' }} – {{ lot.endsAt | date: 'dd/MM/yy HH:mm' }}
+                    @if (lot.capacity != null) {
+                      · {{ lot.capacity }} vagas
+                    }
+                  </span>
+                </div>
+                <em>{{ lot.price | currency: 'BRL' }}</em>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="muted">Nenhum lote cadastrado.</p>
+        }
+
+        @for (w of proofWarnings(proof.id!); track $index) {
+          <p class="inline-warn"><mat-icon aria-hidden="true">warning</mat-icon>{{ w.message }}</p>
+        }
+      </article>
+    } @empty {
+      <p class="muted">Nenhuma prova cadastrada.</p>
+    }
+    <a mat-button [routerLink]="basePath + '/provas'">Editar provas e lotes</a>
+  </section>
+
+  <section class="panel block" aria-labelledby="cats-title">
+    <h2 id="cats-title">Categorias e preço final</h2>
+    @for (cat of event()!.categories; track cat.id) {
+      <article class="category">
+        <header class="proof-head">
+          <h3>{{ cat.name }}</h3>
+          @if (cat.discountPercent) {
+            <span class="discount">−{{ cat.discountPercent }}%</span>
+          }
+        </header>
+        <p class="muted">{{ genderLabel(cat.gender) }} · {{ ageLabel(cat.minAge, cat.maxAge) }}</p>
+        <ul class="lots">
+          @for (row of categoryPrices(cat.id, cat.discountPercent); track $index) {
+            <li>
+              <div>
+                <strong>{{ row.proofName }}</strong>
+                <span class="muted">{{ row.lotName }}</span>
+              </div>
+              <em>
+                @if (row.finalPrice !== row.fullPrice) {
+                  <s>{{ row.fullPrice | currency: 'BRL' }}</s>
+                }
+                {{ row.finalPrice | currency: 'BRL' }}
+              </em>
+            </li>
+          } @empty {
+            <li class="muted">Categoria sem prova vinculada.</li>
+          }
+        </ul>
+      </article>
+    } @empty {
+      <p class="muted">Nenhuma categoria cadastrada.</p>
+    }
+    <a mat-button [routerLink]="basePath + '/categorias'">Editar categorias</a>
+  </section>
+
+  @if (
+    event()!.modules.athleteKit.enabled ||
+    event()!.modules.shirtSizeChart.enabled ||
+    event()!.modules.kitPickup.enabled
+  ) {
+    <section class="panel block" aria-labelledby="kit-title">
+      <h2 id="kit-title">Kit do atleta</h2>
+      @if (event()!.modules.athleteKit.enabled) {
+        <p>{{ event()!.modules.athleteKit.items.join(', ') || '—' }}</p>
+      }
+      @if (event()!.modules.shirtSizeChart.enabled) {
+        <p class="muted">
+          Tamanhos de camiseta:
+          @for (size of event()!.modules.shirtSizeChart.sizes; track size.label; let last = $last) {
+            {{ size.label }}{{ last ? '' : ', ' }}
+          }
+        </p>
+      }
+      @if (event()!.modules.kitPickup.enabled) {
+        <p class="muted">Retirada: {{ event()!.modules.kitPickup.description || '—' }}</p>
+      }
+      <a mat-button [routerLink]="basePath + '/kit'">Editar kit</a>
+    </section>
+  }
+
+  @if (canEditLink()) {
+    <section class="panel block" aria-labelledby="link-title">
+      <h2 id="link-title"><mat-icon aria-hidden="true">link</mat-icon> Link de prévia</h2>
+      <p class="hint">
+        Envie para um sócio ou patrocinador revisar sem login. O link vale 7 dias e mostra a página
+        mesmo em rascunho.
+      </p>
+
+      @if (sharedUrl(); as url) {
+        <div class="share">
+          <input type="text" readonly [value]="url" aria-label="Link de prévia" (focus)="$any($event.target).select()" />
+          <button mat-flat-button color="primary" type="button" (click)="copyLink()">
+            <mat-icon>{{ copied() ? 'check' : 'content_copy' }}</mat-icon>
+            {{ copied() ? 'Copiado' : 'Copiar' }}
+          </button>
+        </div>
+        <p class="hint tight">Guarde o link agora: por segurança ele não pode ser exibido de novo.</p>
+      }
+
+      @if (linkActive()) {
+        <p class="link-status">
+          Link ativo até <strong>{{ linkExpiresAt() | date: 'dd/MM/yyyy HH:mm' }}</strong>
+        </p>
+      } @else if (linkExpiresAt()) {
+        <p class="link-status">O último link expirou.</p>
+      }
+
+      <div class="header-actions">
+        <button mat-stroked-button type="button" (click)="generateLink()" [disabled]="linkBusy()">
+          <mat-icon>add_link</mat-icon>
+          {{ linkActive() ? 'Gerar novo link' : 'Gerar link' }}
+        </button>
+        @if (linkActive()) {
+          <button mat-button type="button" (click)="revokeLink()" [disabled]="linkBusy()">
+            <mat-icon>link_off</mat-icon>
+            Revogar
+          </button>
+        }
+      </div>
+      @if (linkActive() && !sharedUrl()) {
+        <p class="hint tight">Gerar um novo link invalida o anterior.</p>
+      }
+    </section>
+  }
+}

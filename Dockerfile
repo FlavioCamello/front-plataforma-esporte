@@ -6,8 +6,8 @@ RUN npm ci
 COPY . .
 # Build de produção (usa src/environments/environment.ts).
 # API_URL/SITE_URL permitem apontar ao ALB do ECS sem alterar o arquivo versionado.
-ARG API_URL=https://api.plataforma-esporte.com
-ARG SITE_URL=https://plataforma-esporte.com
+ARG API_URL=https://api.participando.com.br
+ARG SITE_URL=https://www.participando.com.br
 RUN sed -i "s|https://api.plataforma-esporte.com|${API_URL}|g" src/environments/environment.ts \
  && sed -i "s|https://plataforma-esporte.com|${SITE_URL}|g" src/environments/environment.ts \
  && npm run build

@@ -1,91 +1,118 @@
 <mat-sidenav-container class="organizer-layout">
   <mat-sidenav
     class="organizer-sidenav"
-    [mode]="isHandset() ? 'over' : 'side'"
-    [opened]="isHandset() ? sidenavOpen() : true"
+    mode="over"
+    [opened]="sidenavOpen()"
     (openedChange)="onSidenavOpenedChange($event)"
   >
-    <div class="brand">
-      <mat-icon>sports</mat-icon>
-      <span>Plataforma</span>
-    </div>
+    <a [routerLink]="eventsRoute" class="brand" (click)="closeSidenav()">
+      <app-brand-mark />
+    </a>
 
     <mat-nav-list>
       <a
         mat-list-item
-        [routerLink]="homeRoute"
+        [routerLink]="eventsRoute"
         routerLinkActive="active"
-        [routerLinkActiveOptions]="{ exact: true }"
-        (click)="closeSidenavIfHandset()"
+        (click)="closeSidenav()"
       >
-        <mat-icon matListItemIcon>dashboard</mat-icon>
-        <span matListItemTitle>Início</span>
+        <mat-icon matListItemIcon>explore</mat-icon>
+        <span matListItemTitle>Eventos</span>
       </a>
 
-      @if (isOrganizer()) {
+      @if (auth.isAuthenticated()) {
+        @if (isOrganizer()) {
+          <a
+            mat-list-item
+            [routerLink]="myEventsRoute"
+            routerLinkActive="active"
+            [routerLinkActiveOptions]="{ exact: true }"
+            (click)="closeSidenav()"
+          >
+            <mat-icon matListItemIcon>event</mat-icon>
+            <span matListItemTitle>Meus eventos</span>
+          </a>
+          <a
+            mat-list-item
+            [routerLink]="createEventRoute"
+            routerLinkActive="active"
+            (click)="closeSidenav()"
+          >
+            <mat-icon matListItemIcon>add_circle</mat-icon>
+            <span matListItemTitle>Criar evento</span>
+          </a>
+        } @else {
+          <a
+            mat-list-item
+            [routerLink]="myRegistrationsRoute"
+            routerLinkActive="active"
+            [routerLinkActiveOptions]="{ exact: true }"
+            (click)="closeSidenav()"
+          >
+            <mat-icon matListItemIcon>emoji_events</mat-icon>
+            <span matListItemTitle>Meus eventos</span>
+          </a>
+        }
+
         <a
           mat-list-item
-          [routerLink]="myEventsRoute"
+          [routerLink]="myAccountRoute"
           routerLinkActive="active"
-          [routerLinkActiveOptions]="{ exact: true }"
-          (click)="closeSidenavIfHandset()"
+          (click)="closeSidenav()"
         >
-          <mat-icon matListItemIcon>event</mat-icon>
-          <span matListItemTitle>Meus eventos</span>
-        </a>
-        <a
-          mat-list-item
-          [routerLink]="createEventRoute"
-          routerLinkActive="active"
-          (click)="closeSidenavIfHandset()"
-        >
-          <mat-icon matListItemIcon>add_circle</mat-icon>
-          <span matListItemTitle>Criar evento</span>
+          <mat-icon matListItemIcon>person</mat-icon>
+          <span matListItemTitle>Meus dados</span>
         </a>
       } @else {
         <a
           mat-list-item
-          [routerLink]="myRegistrationsRoute"
+          [routerLink]="loginRoute"
           routerLinkActive="active"
-          [routerLinkActiveOptions]="{ exact: true }"
-          (click)="closeSidenavIfHandset()"
+          [queryParams]="loginQuery()"
+          (click)="closeSidenav()"
         >
-          <mat-icon matListItemIcon>emoji_events</mat-icon>
-          <span matListItemTitle>Meus eventos</span>
-        </a>
-        <a mat-list-item [routerLink]="publicEventsRoute" (click)="closeSidenavIfHandset()">
-          <mat-icon matListItemIcon>explore</mat-icon>
-          <span matListItemTitle>Ver eventos</span>
+          <mat-icon matListItemIcon>login</mat-icon>
+          <span matListItemTitle>Entrar</span>
         </a>
       }
     </mat-nav-list>
   </mat-sidenav>
 
   <mat-sidenav-content class="organizer-main">
-    <mat-toolbar color="primary" class="organizer-toolbar">
-      @if (isHandset()) {
-        <button
-          mat-icon-button
-          type="button"
-          class="menu-button"
-          aria-label="Abrir menu"
-          (click)="toggleSidenav()"
-        >
-          <mat-icon>menu</mat-icon>
-        </button>
-      }
+    <mat-toolbar class="organizer-toolbar">
+      <button
+        mat-icon-button
+        type="button"
+        class="menu-button"
+        [attr.aria-label]="sidenavOpen() ? 'Fechar menu' : 'Abrir menu'"
+        [attr.aria-expanded]="sidenavOpen()"
+        (click)="toggleSidenav()"
+      >
+        <mat-icon>{{ sidenavOpen() ? 'close' : 'menu' }}</mat-icon>
+      </button>
+      <a [routerLink]="eventsRoute" class="toolbar-brand" (click)="closeSidenav()">
+        <app-brand-mark tone="dark" />
+      </a>
 
-      <span class="toolbar-title">Minha área</span>
       <span class="spacer"></span>
       @if (auth.currentUser(); as user) {
-        <span class="user-name" [attr.title]="user.name">{{ user.name }}</span>
+        <a class="user-name" [routerLink]="myAccountRoute" [attr.title]="'Meus dados — ' + user.name">{{ user.name }}</a>
+        <button mat-icon-button type="button" aria-label="Sair" (click)="logout()">
+          <mat-icon>logout</mat-icon>
+        </button>
+      } @else {
+        <a
+          class="toolbar-login"
+          [routerLink]="loginRoute"
+          [queryParams]="loginQuery()"
+          (click)="closeSidenav()"
+        >
+          Entrar
+        </a>
       }
-      <button mat-icon-button type="button" aria-label="Sair" (click)="logout()">
-        <mat-icon>logout</mat-icon>
-      </button>
     </mat-toolbar>
 
-    <main class="organizer-content">
+    <main class="organizer-content" [class.canvas]="isCanvas()">
       <router-outlet />
     </main>
   </mat-sidenav-content>

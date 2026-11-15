@@ -1,6 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -16,6 +16,7 @@ import { DocumentType } from '../../../core/models/auth-user.model';
 import { USER_HOME_ROUTE } from '../../../core/routing/app-routes';
 import { cnpjValidator } from '../../../core/validators/cnpj.validator';
 import { cpfValidator } from '../../../core/validators/cpf.validator';
+import { BrandMarkComponent } from '../../../shared/brand-mark/brand-mark.component';
 
 type PersonType = 'pf' | 'pj';
 
@@ -30,6 +31,8 @@ type PersonType = 'pf' | 'pj';
     MatFormFieldModule,
     MatInputModule,
     MatSelectModule,
+    RouterLink,
+    BrandMarkComponent,
   ],
   templateUrl: './complete-profile.component.html',
   styleUrl: './complete-profile.component.scss',

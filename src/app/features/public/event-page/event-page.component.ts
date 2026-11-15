@@ -15,18 +15,29 @@ import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { AuthService } from '../../../core/auth/auth.service';
 import { getAuthErrorMessage, mapAuthHttpError } from '../../../core/auth/auth-http.util';
+import { formatEventDateRange } from '../../../core/events/event-date-range';
+import { resolveMapUrl } from '../../../core/events/event-map-url';
+import { EventsApiService } from '../../../core/events/events-api.service';
 import { PublicEventsApiService } from '../../../core/events/public-events-api.service';
 import {
   CATEGORY_GENDER_OPTIONS,
   PublicEventDetail,
   SPORT_TYPE_OPTIONS,
 } from '../../../core/models/event.model';
+import { markdownToPlainText } from '../../../core/markdown/safe-markdown';
 import { USER_HOME_ROUTE } from '../../../core/routing/app-routes';
+import { SafeMarkdownComponent } from '../../../shared/safe-markdown/safe-markdown.component';
+
+/**
+ * UC-38 — `owner-preview`: dono vê em qualquer status (`/home/eventos/:id/previa`);
+ * `shared-preview`: link temporário sem login (`/previa/:token`).
+ */
+export type EventPageMode = 'public' | 'owner-preview' | 'shared-preview';
 
 @Component({
   selector: 'app-event-page',
   standalone: true,
-  imports: [RouterLink, DatePipe, CurrencyPipe],
+  imports: [RouterLink, DatePipe, CurrencyPipe, SafeMarkdownComponent],
   templateUrl: './event-page.component.html',
   styleUrl: './event-page.component.scss',
 })
@@ -34,22 +45,24 @@ export class EventPageComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly api = inject(PublicEventsApiService);
+  private readonly eventsApi = inject(EventsApiService);
   private readonly auth = inject(AuthService);
   private readonly title = inject(Title);
   private readonly meta = inject(Meta);
   private readonly doc = inject(DOCUMENT);
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
-  readonly homeRoute = USER_HOME_ROUTE;
+  readonly mode: EventPageMode = this.route.snapshot.data['mode'] ?? 'public';
+  readonly isPreview = this.mode !== 'public';
+  readonly reviewPath = `${USER_HOME_ROUTE}/eventos/${this.route.snapshot.paramMap.get('id') ?? ''}/revisao`;
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
   readonly event = signal<PublicEventDetail | null>(null);
   /** Lightbox do mapa de percurso (mostrar imagem inteira, sem corte). */
   readonly lightbox = signal<{ src: string; alt: string } | null>(null);
 
-  readonly isLoggedIn = computed(() => this.auth.isAuthenticated());
-  readonly areaLabel = computed(() =>
-    this.auth.currentUser()?.accountType === 'Organizer' ? 'Painel' : 'Minha área'
+  readonly organizerBlocked = computed(
+    () => !this.isPreview && this.auth.currentUser()?.accountType === 'Organizer'
   );
 
   readonly bannerUrl = computed(
@@ -66,8 +79,51 @@ export class EventPageComponent implements OnInit {
     return [a.street, a.number, a.neighborhood, a.city, a.state].filter(Boolean).join(', ');
   });
 
-  readonly ctaLabel = computed(() =>
-    this.event()?.registrationOpen ? 'Inscrever-se' : 'Inscrições encerradas'
+  readonly dateRange = computed(() => {
+    const ev = this.event();
+    return ev ? formatEventDateRange(ev.startsAt, ev.endsAt) : '';
+  });
+
+  readonly mapHref = computed(() => {
+    const ev = this.event();
+    return ev ? resolveMapUrl(ev.mapUrl, ev.venueName, ev.address) : null;
+  });
+
+  readonly kitPickupText = computed(() => {
+    const kit = this.event()?.modules.kitPickup;
+    const text = kit?.description?.trim();
+    return kit?.enabled && text ? text : null;
+  });
+
+  readonly eventSoldOut = computed(() => this.event()?.soldOut === true);
+
+  /**
+   * Na prévia de um rascunho, mostra o selo que o atleta verá depois de publicar
+   * (aberto se o prazo ainda não passou), em vez de "encerradas".
+   */
+  readonly registrationOpen = computed(() => {
+    const ev = this.event();
+    if (!ev) {
+      return false;
+    }
+    if (this.isPreview && ev.status === 'Draft') {
+      return !ev.registrationClosesAt || new Date(ev.registrationClosesAt).getTime() > Date.now();
+    }
+    return ev.registrationOpen;
+  });
+
+  readonly ctaLabel = computed(() => {
+    if (this.isPreview) {
+      return 'Inscrição desabilitada na prévia';
+    }
+    if (this.eventSoldOut()) {
+      return 'Esgotado';
+    }
+    return this.registrationOpen() ? 'Inscrever-se' : 'Inscrições encerradas';
+  });
+
+  readonly ctaDisabled = computed(
+    () => this.isPreview || this.eventSoldOut() || !this.registrationOpen()
   );
 
   ngOnInit(): void {
@@ -91,7 +147,7 @@ export class EventPageComponent implements OnInit {
 
   onCtaClick(): void {
     const ev = this.event();
-    if (!ev?.registrationOpen) {
+    if (this.isPreview || this.organizerBlocked() || !ev?.registrationOpen || ev.soldOut) {
       return;
     }
 
@@ -138,16 +194,38 @@ export class EventPageComponent implements OnInit {
     this.doc.body.style.overflow = locked ? 'hidden' : '';
   }
 
+  private loadDetail() {
+    const params = this.route.snapshot.paramMap;
+    switch (this.mode) {
+      case 'owner-preview':
+        return this.eventsApi.preview(params.get('id') ?? '');
+      case 'shared-preview':
+        return this.api.getSharedPreview(params.get('token') ?? '');
+      default:
+        return this.api.getBySlug(params.get('slug') ?? '');
+    }
+  }
+
   private async load(): Promise<void> {
-    const slug = this.route.snapshot.paramMap.get('slug') ?? '';
     this.loading.set(true);
     this.errorMessage.set(null);
+    if (this.isPreview) {
+      this.meta.updateTag({ name: 'robots', content: 'noindex, nofollow' });
+    }
     try {
-      const detail = await firstValueFrom(this.api.getBySlug(slug)).catch((err) =>
-        mapAuthHttpError(err, 'Evento não encontrado.')
+      const notFound =
+        this.mode === 'shared-preview'
+          ? 'Link de prévia inválido ou expirado.'
+          : 'Evento não encontrado.';
+      const detail = await firstValueFrom(this.loadDetail()).catch((err) =>
+        mapAuthHttpError(err, notFound)
       );
       this.event.set(detail);
-      this.applySeo(detail);
+      if (this.isPreview) {
+        this.title.setTitle(`Prévia · ${detail.name}`);
+      } else {
+        this.applySeo(detail);
+      }
     } catch (error) {
       this.errorMessage.set(getAuthErrorMessage(error));
       this.event.set(null);
@@ -186,7 +264,7 @@ export class EventPageComponent implements OnInit {
   }
 
   private buildSeoDescription(detail: PublicEventDetail): string {
-    const base = (detail.description ?? '').trim();
+    const base = markdownToPlainText(detail.description);
     if (base) {
       return base.length > 200 ? `${base.slice(0, 197)}…` : base;
     }

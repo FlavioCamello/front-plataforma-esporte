@@ -1,6 +1,10 @@
+:host {
+  display: block;
+  min-height: 100%;
+}
+
 .complete-profile-page {
-  min-height: 100vh;
-  min-height: 100dvh;
+  min-height: 100%;
   padding: calc(var(--app-page-padding) + var(--app-safe-top))
     calc(var(--app-page-padding) + var(--app-safe-right))
     calc(var(--app-page-padding) + var(--app-safe-bottom))
@@ -16,7 +20,7 @@
   max-width: 480px;
   margin: 0 auto 0.5rem;
   padding-bottom: 0.25rem;
-  background: linear-gradient(180deg, #e8f6f4 70%, transparent);
+  background: linear-gradient(180deg, var(--brand-sand) 70%, transparent);
 }
 
 .back-button {
@@ -33,6 +37,13 @@
   width: 100%;
   max-width: 480px;
   margin: 0 auto;
+}
+
+.auth-brand {
+  display: flex;
+  justify-content: center;
+  margin: 0.25rem 0 1rem;
+  text-decoration: none;
 }
 
 .auth-form {

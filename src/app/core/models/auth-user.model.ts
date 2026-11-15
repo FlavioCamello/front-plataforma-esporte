@@ -18,4 +18,6 @@ export interface AuthUser {
   responsibleDocument?: string | null;
   /** Indica se o perfil tem todos os dados para inscrição/criação de evento. */
   profileComplete?: boolean;
+  /** Falso para conta que só entra pelo Google (não há senha para trocar). */
+  hasPassword?: boolean;
 }

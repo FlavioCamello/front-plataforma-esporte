@@ -1,5 +1,5 @@
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
-import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AbstractControl, FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
@@ -25,9 +25,100 @@ import {
   createDisabledModules,
 } from '../../../../core/models/event.model';
 import { USER_HOME_ROUTE } from '../../../../core/routing/app-routes';
+import { MarkdownEditorComponent } from '../../../../shared/markdown-editor/markdown-editor.component';
+
+/** Seções do painel (UC-37) editadas por este componente; provas têm tela própria. */
+export type EventSectionKey = 'general' | 'content' | 'categories' | 'kit' | 'settings';
+
+const SECTION_TITLES: Record<EventSectionKey, { title: string; subtitle: string }> = {
+  general: {
+    title: 'Informações gerais',
+    subtitle: 'Nome, data, local, capa, prazo de inscrição, vagas e contato',
+  },
+  content: {
+    title: 'Conteúdo',
+    subtitle: 'Descrição, percurso, regulamento e seções personalizadas',
+  },
+  categories: {
+    title: 'Categorias',
+    subtitle: 'Opções de inscrição por gênero, idade e desconto',
+  },
+  kit: {
+    title: 'Kit do atleta',
+    subtitle: 'Itens do kit, tamanhos de camiseta e retirada',
+  },
+  settings: {
+    title: 'Configurações',
+    subtitle: 'Site e redes sociais do evento',
+  },
+};
+
+/** Campos do PATCH que cada seção envia — o resto do evento não é tocado. */
+const SECTION_REQUEST_KEYS: Record<EventSectionKey, Array<keyof UpdateEventRequest>> = {
+  general: [
+    'name',
+    'sportType',
+    'bannerUrl',
+    'startsAt',
+    'endsAt',
+    'registrationClosesAt',
+    'venueName',
+    'address',
+    'contactEmail',
+    'contactPhone',
+    'capacity',
+    'mapUrl',
+  ],
+  content: ['description', 'regulationText', 'regulationUrl', 'customSections', 'modules'],
+  categories: ['categories'],
+  kit: ['modules'],
+  settings: ['modules'],
+};
+
+/** Com o evento encerrado o back só aceita conteúdo informativo. */
+const CLOSED_REQUEST_KEYS: Array<keyof UpdateEventRequest> = [
+  'description',
+  'contactEmail',
+  'contactPhone',
+  'customSections',
+];
+
+const SECTION_CONTROLS: Record<EventSectionKey, string[]> = {
+  general: [
+    'name',
+    'sportType',
+    'startsAtLocal',
+    'endsAtLocal',
+    'registrationClosesAtLocal',
+    'venueName',
+    'street',
+    'number',
+    'complement',
+    'neighborhood',
+    'city',
+    'state',
+    'country',
+    'capacity',
+    'mapUrl',
+    'contactEmail',
+    'contactPhone',
+  ],
+  content: ['description', 'routeDescription', 'regulationText', 'regulationUrl', 'customSections'],
+  categories: ['categories'],
+  kit: ['kitItemsText', 'kitExtrasNote', 'shirtMeasurementHint', 'kitPickupDescription'],
+  settings: ['websiteUrl', 'instagramUrl'],
+};
+
+const SUGGESTED_SECTIONS = [
+  'Programação',
+  'Premiação',
+  'Entrega de kits',
+  'Inscrições',
+  'Curiosidades',
+] as const;
 
 @Component({
-  selector: 'app-continue-event',
+  selector: 'app-event-section',
   standalone: true,
   imports: [
     ReactiveFormsModule,
@@ -40,11 +131,12 @@ import { USER_HOME_ROUTE } from '../../../../core/routing/app-routes';
     MatSelectModule,
     MatSlideToggleModule,
     MatCheckboxModule,
+    MarkdownEditorComponent,
   ],
-  templateUrl: './continue-event.component.html',
-  styleUrl: './continue-event.component.scss',
+  templateUrl: './event-section.component.html',
+  styleUrl: './event-section.component.scss',
 })
-export class ContinueEventComponent implements OnInit, OnDestroy {
+export class EventSectionComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly eventsApi = inject(EventsApiService);
@@ -57,10 +149,14 @@ export class ContinueEventComponent implements OnInit, OnDestroy {
   readonly shirtCatalog = SHIRT_SIZE_CATALOG;
 
   readonly eventId = this.route.snapshot.paramMap.get('id') ?? '';
+  readonly section: EventSectionKey =
+    (this.route.snapshot.data['section'] as EventSectionKey | undefined) ?? 'general';
+  readonly sectionInfo = SECTION_TITLES[this.section];
+  readonly dashboardPath = `${USER_HOME_ROUTE}/eventos/${this.eventId}`;
+
   readonly loading = signal(true);
   readonly saving = signal(false);
   readonly errorMessage = signal<string | null>(null);
-  readonly successMessage = signal<string | null>(null);
   readonly event = signal<EventDetail | null>(null);
 
   /** label → medidas opcionais (cm). A presença da chave indica tamanho selecionado. */
@@ -79,6 +175,13 @@ export class ContinueEventComponent implements OnInit, OnDestroy {
   readonly isClosed = computed(() => this.event()?.status === 'Closed');
   readonly canEditCategories = computed(() => !this.isClosed() && !this.isCancelled());
   readonly canEditModules = computed(() => !this.isClosed() && !this.isCancelled());
+  /** Seções sem nenhum campo editável com o evento encerrado. */
+  readonly lockedWhenClosed = computed(
+    () => this.isClosed() && (this.section === 'categories' || this.section === 'kit' || this.section === 'settings')
+  );
+  readonly canSave = computed(() => !this.isCancelled() && !this.lockedWhenClosed());
+  readonly suggestionPickerOpen = signal(false);
+  readonly suggestedSectionTitles = SUGGESTED_SECTIONS;
 
   readonly form = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(160)]],
@@ -86,15 +189,25 @@ export class ContinueEventComponent implements OnInit, OnDestroy {
     description: [''],
     bannerUrl: [''],
     startsAtLocal: [''],
+    endsAtLocal: [''],
     registrationClosesAtLocal: [''],
     venueName: [''],
-    contactEmail: [''],
+    street: [''],
+    number: [''],
+    complement: [''],
+    neighborhood: [''],
+    city: [''],
+    state: ['', [Validators.maxLength(2)]],
+    capacity: [null as number | null],
+    mapUrl: [''],
+    country: ['Brasil'],
+    contactEmail: ['', [Validators.email]],
     contactPhone: [''],
     regulationText: [''],
     regulationUrl: [''],
-    categories: this.fb.array([] as ReturnType<ContinueEventComponent['createCategoryGroup']>[]),
+    categories: this.fb.array([] as ReturnType<EventSectionComponent['createCategoryGroup']>[]),
     customSections: this.fb.array(
-      [] as ReturnType<ContinueEventComponent['createCustomSectionGroup']>[]
+      [] as ReturnType<EventSectionComponent['createCustomSectionGroup']>[]
     ),
     routeEnabled: [false],
     routeDescription: [''],
@@ -230,51 +343,67 @@ export class ContinueEventComponent implements OnInit, OnDestroy {
     this.categories.removeAt(index);
   }
 
-  addCustomSection(): void {
-    this.customSections.push(this.createCustomSectionGroup());
+  addCustomSection(title?: string): void {
+    if (this.customSections.length >= 8) {
+      this.errorMessage.set('Máximo de 8 seções personalizadas.');
+      return;
+    }
+    this.customSections.push(this.createCustomSectionGroup({ title }));
+    this.suggestionPickerOpen.set(false);
+  }
+
+  toggleSuggestionPicker(): void {
+    this.suggestionPickerOpen.update((open) => !open);
+  }
+
+  availableSuggestions(): string[] {
+    const used = new Set(
+      this.customSections.controls
+        .map((ctrl) => String(ctrl.get('title')?.value ?? '').trim().toLowerCase())
+        .filter(Boolean)
+    );
+    return SUGGESTED_SECTIONS.filter((title) => !used.has(title.toLowerCase()));
   }
 
   removeCustomSection(index: number): void {
     this.customSections.removeAt(index);
   }
 
-  async saveAndGoToProofs(): Promise<void> {
+  async save(): Promise<void> {
     const updated = await this.persist();
     if (updated) {
-      void this.router.navigateByUrl(`/home/eventos/${this.eventId}/provas`);
+      void this.router.navigateByUrl(this.dashboardPath);
     }
   }
 
-  cancel(): void {
-    void this.router.navigateByUrl(this.homeRoute);
+  backToDashboard(): void {
+    void this.router.navigateByUrl(this.dashboardPath);
   }
 
   private async persist(): Promise<EventDetail | null> {
     this.errorMessage.set(null);
-    this.successMessage.set(null);
 
     if (this.isCancelled()) {
       this.errorMessage.set('Evento cancelado não pode ser editado.');
       return null;
     }
 
-    if (this.form.invalid) {
-      this.form.markAllAsTouched();
+    const controls = this.sectionControls();
+    if (controls.some((c) => c.invalid)) {
+      controls.forEach((c) => c.markAllAsTouched());
       return null;
     }
 
     this.saving.set(true);
     try {
-      // Sobe o banner (se houver arquivo novo) antes de montar o request de update.
-      if (this.bannerFile) {
+      if (this.section === 'general' && this.bannerFile) {
         const bannerUrl = await this.imageUpload.upload(this.eventId, 'banner', this.bannerFile);
         this.form.controls.bannerUrl.setValue(bannerUrl);
         this.bannerCleared.set(false);
         this.bannerFile = null;
       }
 
-      // Sobe o PDF do regulamento (se houver) e grava a URL pública no evento.
-      if (this.regulationFile) {
+      if (this.section === 'content' && this.regulationFile) {
         const regulationUrl = await this.imageUpload.upload(
           this.eventId,
           'regulation',
@@ -285,7 +414,7 @@ export class ContinueEventComponent implements OnInit, OnDestroy {
       }
 
       const updated = await firstValueFrom(
-        this.eventsApi.update(this.eventId, this.buildRequest())
+        this.eventsApi.update(this.eventId, this.buildSectionRequest())
       ).catch((err) => mapAuthHttpError(err, 'Não foi possível salvar o evento.'));
 
       this.event.set(updated);
@@ -297,6 +426,11 @@ export class ContinueEventComponent implements OnInit, OnDestroy {
     } finally {
       this.saving.set(false);
     }
+  }
+
+  private sectionControls(): AbstractControl[] {
+    const controls = this.form.controls as Record<string, AbstractControl>;
+    return SECTION_CONTROLS[this.section].map((name) => controls[name]);
   }
 
   private async load(): Promise<void> {
@@ -328,8 +462,18 @@ export class ContinueEventComponent implements OnInit, OnDestroy {
       description: detail.description ?? '',
       bannerUrl: detail.bannerUrl ?? '',
       startsAtLocal: this.toLocalInput(detail.startsAt),
+      endsAtLocal: this.toLocalInput(detail.endsAt),
       registrationClosesAtLocal: this.toLocalInput(detail.registrationClosesAt),
+      capacity: detail.capacity ?? null,
+      mapUrl: detail.mapUrl ?? '',
       venueName: detail.venueName ?? '',
+      street: detail.address?.street ?? '',
+      number: detail.address?.number ?? '',
+      complement: detail.address?.complement ?? '',
+      neighborhood: detail.address?.neighborhood ?? '',
+      city: detail.address?.city ?? '',
+      state: detail.address?.state ?? '',
+      country: detail.address?.country || 'Brasil',
       contactEmail: detail.contactEmail ?? '',
       contactPhone: detail.contactPhone ?? '',
       regulationText: detail.regulationText ?? '',
@@ -358,6 +502,9 @@ export class ContinueEventComponent implements OnInit, OnDestroy {
           minAge: category.minAge ?? null,
           maxAge: category.maxAge ?? null,
           discountPercent: category.discountPercent ?? null,
+          capacity: category.capacity ?? null,
+          registrationOpensAt: category.registrationOpensAt ?? null,
+          registrationClosesAt: category.registrationClosesAt ?? null,
         })
       );
     }
@@ -386,20 +533,50 @@ export class ContinueEventComponent implements OnInit, OnDestroy {
       this.form.disable({ emitEvent: false });
     } else if (this.isClosed()) {
       this.form.enable({ emitEvent: false });
-      this.form.controls.name.disable({ emitEvent: false });
-      this.form.controls.sportType.disable({ emitEvent: false });
-      this.form.controls.startsAtLocal.disable({ emitEvent: false });
-      this.form.controls.registrationClosesAtLocal.disable({ emitEvent: false });
-      this.form.controls.venueName.disable({ emitEvent: false });
-      this.form.controls.regulationText.disable({ emitEvent: false });
-      this.form.controls.regulationUrl.disable({ emitEvent: false });
-      this.form.controls.routeEnabled.disable({ emitEvent: false });
-      this.form.controls.kitEnabled.disable({ emitEvent: false });
-      this.form.controls.shirtEnabled.disable({ emitEvent: false });
-      this.form.controls.kitPickupEnabled.disable({ emitEvent: false });
-      this.form.controls.socialEnabled.disable({ emitEvent: false });
+      const locked = [
+        'name',
+        'sportType',
+        'startsAtLocal',
+        'endsAtLocal',
+        'registrationClosesAtLocal',
+        'capacity',
+        'mapUrl',
+        'venueName',
+        'street',
+        'number',
+        'complement',
+        'neighborhood',
+        'city',
+        'state',
+        'country',
+        'regulationText',
+        'regulationUrl',
+        'routeEnabled',
+        'routeDescription',
+        'kitEnabled',
+        'shirtEnabled',
+        'kitPickupEnabled',
+        'socialEnabled',
+      ] as const;
+      for (const name of locked) {
+        this.form.controls[name].disable({ emitEvent: false });
+      }
       this.categories.disable({ emitEvent: false });
     }
+  }
+
+  hasCategoryAdvanced(ctrl: AbstractControl): boolean {
+    const value = ctrl.getRawValue() as {
+      capacity?: number | string | null;
+      registrationOpensAtLocal?: string;
+      registrationClosesAtLocal?: string;
+    };
+    const hasCapacity = value.capacity != null && value.capacity !== '';
+    return (
+      hasCapacity ||
+      !!value.registrationOpensAtLocal ||
+      !!value.registrationClosesAtLocal
+    );
   }
 
   private createCategoryGroup(initial?: {
@@ -409,6 +586,9 @@ export class ContinueEventComponent implements OnInit, OnDestroy {
     minAge?: number | null;
     maxAge?: number | null;
     discountPercent?: number | null;
+    capacity?: number | null;
+    registrationOpensAt?: string | null;
+    registrationClosesAt?: string | null;
   }) {
     return this.fb.nonNullable.group({
       id: [initial?.id ?? ''],
@@ -420,6 +600,9 @@ export class ContinueEventComponent implements OnInit, OnDestroy {
         initial?.discountPercent as number | null,
         [Validators.min(0), Validators.max(100)],
       ],
+      capacity: [initial?.capacity as number | null, [Validators.min(1)]],
+      registrationOpensAtLocal: [this.toLocalInput(initial?.registrationOpensAt)],
+      registrationClosesAtLocal: [this.toLocalInput(initial?.registrationClosesAt)],
     });
   }
 
@@ -431,19 +614,37 @@ export class ContinueEventComponent implements OnInit, OnDestroy {
     });
   }
 
-  private buildRequest(): UpdateEventRequest {
+  private buildSectionRequest(): UpdateEventRequest {
+    const full = this.buildFullRequest();
+    const allowed = new Set<keyof UpdateEventRequest>(SECTION_REQUEST_KEYS[this.section]);
+    if (this.isClosed()) {
+      for (const key of [...allowed]) {
+        if (!CLOSED_REQUEST_KEYS.includes(key)) {
+          allowed.delete(key);
+        }
+      }
+    }
+
+    const request: UpdateEventRequest = {};
+    for (const key of allowed) {
+      if (key in full) {
+        (request as Record<string, unknown>)[key] = full[key];
+      }
+    }
+    return request;
+  }
+
+  private buildFullRequest(): UpdateEventRequest {
     const value = this.form.getRawValue();
     const kitEnabled = value.kitEnabled;
     const shirtEnabled = kitEnabled && value.shirtEnabled;
 
-    // Imagens do percurso ficam nas Provas (mapa por prova); módulo routeImages não é usado.
     const modules: EventModules = {
       ...createDisabledModules(),
       route: {
         enabled: value.routeEnabled,
         description: value.routeDescription.trim() || null,
       },
-      routeImages: { enabled: false, entries: [] },
       athleteKit: {
         enabled: kitEnabled,
         items: value.kitItemsText
@@ -474,6 +675,7 @@ export class ContinueEventComponent implements OnInit, OnDestroy {
         websiteUrl: value.websiteUrl.trim() || null,
         instagramUrl: value.instagramUrl.trim() || null,
       },
+      customForm: this.event()?.modules.customForm ?? { enabled: false, questions: [] },
     };
 
     const request: UpdateEventRequest = {
@@ -481,8 +683,21 @@ export class ContinueEventComponent implements OnInit, OnDestroy {
       sportType: value.sportType,
       description: value.description.trim() || null,
       startsAt: this.toIsoUtc(value.startsAtLocal),
+      endsAt: this.toIsoUtc(value.endsAtLocal),
       registrationClosesAt: this.toIsoUtc(value.registrationClosesAtLocal),
+      capacity:
+        value.capacity == null || value.capacity === ('' as unknown) ? null : Number(value.capacity),
+      mapUrl: value.mapUrl.trim() || null,
       venueName: value.venueName.trim() || null,
+      address: {
+        street: value.street.trim() || null,
+        number: value.number.trim() || null,
+        complement: value.complement.trim() || null,
+        neighborhood: value.neighborhood.trim() || null,
+        city: value.city.trim() || null,
+        state: value.state.trim().toUpperCase() || null,
+        country: value.country.trim() || 'Brasil',
+      },
       contactEmail: value.contactEmail.trim() || null,
       contactPhone: value.contactPhone.trim() || null,
       regulationText: value.regulationText.trim() || null,
@@ -498,39 +713,33 @@ export class ContinueEventComponent implements OnInit, OnDestroy {
     }
 
     if (this.canEditCategories()) {
-      request.categories = value.categories.map((c) => ({
-        id: c.id || null,
-        name: c.name.trim(),
-        format: null,
-        gender: c.gender,
-        capacity: null,
-        minAge: c.minAge == null || c.minAge === ('' as unknown) ? null : Number(c.minAge),
-        maxAge: c.maxAge == null || c.maxAge === ('' as unknown) ? null : Number(c.maxAge),
-        discountPercent:
-          c.discountPercent == null || c.discountPercent === ('' as unknown)
-            ? null
-            : Number(c.discountPercent),
-      }));
+      request.categories = value.categories.map((c) => {
+        return {
+          id: c.id || null,
+          name: c.name.trim(),
+          gender: c.gender,
+          capacity:
+            c.capacity == null || c.capacity === ('' as unknown) ? null : Number(c.capacity),
+          minAge: c.minAge == null || c.minAge === ('' as unknown) ? null : Number(c.minAge),
+          maxAge: c.maxAge == null || c.maxAge === ('' as unknown) ? null : Number(c.maxAge),
+          discountPercent:
+            c.discountPercent == null || c.discountPercent === ('' as unknown)
+              ? null
+              : Number(c.discountPercent),
+          registrationOpensAt: this.toIsoUtc(c.registrationOpensAtLocal),
+          registrationClosesAt: this.toIsoUtc(c.registrationClosesAtLocal),
+        };
+      });
     }
 
     // Seções livres: conteúdo informativo, editável mesmo com evento encerrado.
-    const customSections = value.customSections
+    request.customSections = value.customSections
       .map((s) => ({
         id: s.id || null,
         title: s.title.trim(),
         content: s.content.trim(),
       }))
       .filter((s) => s.title.length > 0 || s.content.length > 0);
-    request.customSections = customSections;
-
-    if (this.isClosed()) {
-      return {
-        description: request.description ?? null,
-        contactEmail: request.contactEmail ?? null,
-        contactPhone: request.contactPhone ?? null,
-        customSections,
-      };
-    }
 
     return request;
   }

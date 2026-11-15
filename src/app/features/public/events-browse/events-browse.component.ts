@@ -1,35 +1,24 @@
-import { DatePipe } from '@angular/common';
-import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Subscription, debounceTime, firstValueFrom } from 'rxjs';
 
-import { AuthService } from '../../../core/auth/auth.service';
 import { getAuthErrorMessage, mapAuthHttpError } from '../../../core/auth/auth-http.util';
+import { formatEventDateRange } from '../../../core/events/event-date-range';
 import { PublicEventsApiService } from '../../../core/events/public-events-api.service';
 import { PublicEventListItem, SPORT_TYPE_OPTIONS } from '../../../core/models/event.model';
-import { PUBLIC_EVENTS_ROUTE, USER_HOME_ROUTE } from '../../../core/routing/app-routes';
 
 @Component({
   selector: 'app-events-browse',
   standalone: true,
-  imports: [RouterLink, DatePipe, ReactiveFormsModule],
+  imports: [RouterLink, ReactiveFormsModule],
   templateUrl: './events-browse.component.html',
   styleUrl: './events-browse.component.scss',
 })
 export class EventsBrowseComponent implements OnInit, OnDestroy {
   private readonly api = inject(PublicEventsApiService);
   private readonly fb = inject(FormBuilder);
-  readonly auth = inject(AuthService);
-
-  readonly homeRoute = USER_HOME_ROUTE;
-  readonly publicEventsRoute = PUBLIC_EVENTS_ROUTE;
   readonly sportTypes = SPORT_TYPE_OPTIONS;
-
-  readonly isLoggedIn = computed(() => this.auth.isAuthenticated());
-  readonly areaLabel = computed(() =>
-    this.auth.currentUser()?.accountType === 'Organizer' ? 'Painel' : 'Minha área'
-  );
 
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
@@ -56,6 +45,10 @@ export class EventsBrowseComponent implements OnInit, OnDestroy {
 
   sportLabel(sportType: string): string {
     return SPORT_TYPE_OPTIONS.find((o) => o.value === sportType)?.label ?? sportType;
+  }
+
+  dateRange(item: PublicEventListItem): string {
+    return formatEventDateRange(item.startsAt, item.endsAt);
   }
 
   hasActiveFilters(): boolean {

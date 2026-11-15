@@ -1,0 +1,198 @@
+<div class="page">
+  <header class="page-head">
+    <h1>Meus dados</h1>
+    <p class="subtitle">Confira e atualize as informações da sua conta.</p>
+  </header>
+
+  @if (user(); as u) {
+    @if (!hasProfile()) {
+      <section class="card">
+        <h2>Complete seu perfil</h2>
+        <p class="muted">
+          Antes de editar seus dados, informe documento, telefone e os demais dados da conta.
+        </p>
+        <a
+          mat-flat-button
+          color="primary"
+          class="full-width-mobile"
+          [routerLink]="completeProfileLink"
+          [queryParams]="completeProfileQuery"
+        >
+          Completar perfil
+        </a>
+      </section>
+    } @else {
+      <section class="card" aria-labelledby="account-title">
+        <h2 id="account-title">Conta</h2>
+        <dl class="readonly">
+          <div>
+            <dt>E-mail</dt>
+            <dd>{{ u.email }}</dd>
+          </div>
+          <div>
+            <dt>{{ documentLabel() }}</dt>
+            <dd>{{ documentDisplay() }}</dd>
+          </div>
+          <div>
+            <dt>Tipo de conta</dt>
+            <dd>{{ accountLabel() }}</dd>
+          </div>
+        </dl>
+        <p class="hint">E-mail e documento não podem ser alterados.</p>
+      </section>
+
+      <section class="card" aria-labelledby="profile-title">
+        <h2 id="profile-title">Dados pessoais</h2>
+
+        @if (profileError(); as message) {
+          <p class="error" role="alert">{{ message }}</p>
+        }
+        @if (profileSuccess(); as message) {
+          <p class="success" role="status">{{ message }}</p>
+        }
+
+        <form class="form" [formGroup]="profileForm" (ngSubmit)="saveProfile()">
+          <mat-form-field appearance="outline">
+            <mat-label>{{ isOrganizer() ? 'Nome do responsável' : 'Nome completo' }}</mat-label>
+            <input matInput formControlName="name" autocomplete="name" />
+            @if (profileForm.controls.name.invalid && profileForm.controls.name.touched) {
+              <mat-error>Informe o nome</mat-error>
+            }
+          </mat-form-field>
+
+          @if (isOrganizer()) {
+            <mat-form-field appearance="outline">
+              <mat-label>Razão social</mat-label>
+              <input matInput formControlName="companyName" autocomplete="organization" />
+              @if (profileForm.controls.companyName.invalid && profileForm.controls.companyName.touched) {
+                <mat-error>Informe a razão social</mat-error>
+              }
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>CPF do responsável</mat-label>
+              <input matInput formControlName="responsibleDocument" inputmode="numeric" placeholder="000.000.000-00" />
+              @if (profileForm.controls.responsibleDocument.hasError('required') && profileForm.controls.responsibleDocument.touched) {
+                <mat-error>Informe o CPF do responsável</mat-error>
+              }
+              @if (profileForm.controls.responsibleDocument.hasError('cpf') && profileForm.controls.responsibleDocument.touched) {
+                <mat-error>CPF inválido</mat-error>
+              }
+            </mat-form-field>
+          } @else {
+            <mat-form-field appearance="outline">
+              <mat-label>Nacionalidade</mat-label>
+              <mat-select formControlName="nationality">
+                @for (option of nationalities(); track option) {
+                  <mat-option [value]="option">{{ option }}</mat-option>
+                }
+              </mat-select>
+              @if (profileForm.controls.nationality.invalid && profileForm.controls.nationality.touched) {
+                <mat-error>Informe a nacionalidade</mat-error>
+              }
+            </mat-form-field>
+          }
+
+          <mat-form-field appearance="outline">
+            <mat-label>Data de nascimento</mat-label>
+            <input matInput type="date" formControlName="birthDate" [max]="maxBirthDate" />
+            @if (profileForm.controls.birthDate.invalid && profileForm.controls.birthDate.touched) {
+              <mat-error>Informe a data de nascimento</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Gênero</mat-label>
+            <mat-select formControlName="gender">
+              @for (option of genders; track option) {
+                <mat-option [value]="option">{{ option }}</mat-option>
+              }
+            </mat-select>
+            @if (profileForm.controls.gender.invalid && profileForm.controls.gender.touched) {
+              <mat-error>Informe o gênero</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Telefone</mat-label>
+            <input matInput formControlName="phone" autocomplete="tel" inputmode="tel" placeholder="(11) 99999-9999" />
+            @if (profileForm.controls.phone.hasError('required') && profileForm.controls.phone.touched) {
+              <mat-error>Informe o telefone</mat-error>
+            }
+            @if (profileForm.controls.phone.hasError('pattern') && profileForm.controls.phone.touched) {
+              <mat-error>Telefone inválido (DDD + número)</mat-error>
+            }
+          </mat-form-field>
+
+          <button
+            mat-flat-button
+            color="primary"
+            type="submit"
+            class="full-width-mobile"
+            [disabled]="savingProfile()"
+          >
+            {{ savingProfile() ? 'Salvando…' : 'Salvar dados' }}
+          </button>
+        </form>
+      </section>
+    }
+
+    <section class="card" aria-labelledby="password-title">
+      <h2 id="password-title">Senha</h2>
+
+      @if (hasPassword()) {
+        @if (passwordError(); as message) {
+          <p class="error" role="alert">{{ message }}</p>
+        }
+        @if (passwordSuccess(); as message) {
+          <p class="success" role="status">{{ message }}</p>
+        }
+
+        <form class="form" [formGroup]="passwordForm" (ngSubmit)="savePassword()">
+          <mat-form-field appearance="outline">
+            <mat-label>Senha atual</mat-label>
+            <input matInput type="password" formControlName="currentPassword" autocomplete="current-password" />
+            @if (passwordForm.controls.currentPassword.invalid && passwordForm.controls.currentPassword.touched) {
+              <mat-error>Informe a senha atual</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Nova senha</mat-label>
+            <input matInput type="password" formControlName="newPassword" autocomplete="new-password" />
+            <mat-hint>Mínimo de {{ passwordMinLength }} caracteres</mat-hint>
+            @if (passwordForm.controls.newPassword.hasError('required') && passwordForm.controls.newPassword.touched) {
+              <mat-error>Informe a nova senha</mat-error>
+            }
+            @if (passwordForm.controls.newPassword.hasError('minlength') && passwordForm.controls.newPassword.touched) {
+              <mat-error>Mínimo de {{ passwordMinLength }} caracteres</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Confirmar nova senha</mat-label>
+            <input matInput type="password" formControlName="confirmPassword" autocomplete="new-password" />
+            @if (passwordForm.controls.confirmPassword.hasError('required') && passwordForm.controls.confirmPassword.touched) {
+              <mat-error>Confirme a nova senha</mat-error>
+            }
+          </mat-form-field>
+          @if (passwordForm.hasError('mismatch') && passwordForm.controls.confirmPassword.touched) {
+            <p class="field-error" role="alert">As senhas não conferem</p>
+          }
+
+          <button
+            mat-flat-button
+            color="primary"
+            type="submit"
+            class="full-width-mobile"
+            [disabled]="savingPassword()"
+          >
+            {{ savingPassword() ? 'Salvando…' : 'Trocar senha' }}
+          </button>
+        </form>
+      } @else {
+        <p class="muted">Você entra com o Google, então não há senha para trocar aqui.</p>
+      }
+    </section>
+  }
+</div>

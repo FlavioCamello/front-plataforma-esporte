@@ -6,6 +6,7 @@ import { catchError } from 'rxjs/operators';
 import { mapAuthHttpError, mapLoginHttpError } from './auth-http.util';
 import { InvalidCredentialsError } from './auth.errors';
 import { environment } from '../../../environments/environment';
+import { ChangePasswordRequest, UpdateAccountRequest } from '../models/account.model';
 import { AuthUser } from '../models/auth-user.model';
 import { CompleteProfileRequest } from '../models/complete-profile.model';
 import { RegisterRequest } from '../models/register.model';
@@ -15,6 +16,7 @@ import { decodeJwtPayload } from './jwt.util';
 import { buildGoogleLoginUrl } from './google-auth.util';
 import { TokenStorageService } from './token-storage.service';
 import {
+  PUBLIC_EVENTS_ROUTE,
   USER_HOME_ROUTE,
   defaultHomeFor,
   isDefaultReturnUrl,
@@ -116,10 +118,38 @@ export class AuthService {
     return user;
   }
 
+  /** Edita os próprios dados (PATCH /api/me/account). */
+  async updateAccount(request: UpdateAccountRequest): Promise<AuthUser> {
+    const user = await firstValueFrom(
+      this.authApi
+        .updateAccount(request)
+        .pipe(
+          catchError((err) =>
+            mapAuthHttpError(err, 'Não foi possível salvar seus dados. Tente novamente.')
+          )
+        )
+    );
+    this.userSignal.set(user);
+    return user;
+  }
+
+  /** Troca a senha conferindo a atual (POST /api/me/password). */
+  async changePassword(request: ChangePasswordRequest): Promise<void> {
+    await firstValueFrom(
+      this.authApi
+        .changePassword(request)
+        .pipe(
+          catchError((err) =>
+            mapAuthHttpError(err, 'Não foi possível trocar a senha. Tente novamente.')
+          )
+        )
+    );
+  }
+
   logout(): void {
     this.tokenStorage.clearAccessToken();
     this.userSignal.set(null);
-    void this.router.navigate(['/auth/login']);
+    void this.router.navigate([PUBLIC_EVENTS_ROUTE]);
   }
 
   private establishSession(token: string, user: AuthUser): void {

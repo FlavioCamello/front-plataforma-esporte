@@ -1,0 +1,56 @@
+<div class="pay-page">
+  <a class="back" [routerLink]="['/e', slug]">Voltar ao evento</a>
+
+  @if (errorMessage()) {
+    <p class="err" role="alert">{{ errorMessage() }}</p>
+  }
+
+  @if (phase() === 'loading') {
+    <p class="muted">Carregando pagamento…</p>
+  }
+
+  @if (checkout(); as item) {
+    <header>
+      <p class="kicker">Pagamento</p>
+      <h1>{{ item.eventName }}</h1>
+      <p class="amount">{{ item.priceSnapshot | currency: 'BRL' }}</p>
+      @if (item.paymentExpiresAt && phase() !== 'confirmed' && phase() !== 'closed') {
+        <p class="muted">Pague até {{ item.paymentExpiresAt | date: 'dd/MM · HH:mm' }}.</p>
+      }
+    </header>
+
+    @if (phase() === 'pay') {
+      @if (needsTestPayerEmail()) {
+        <p class="muted">No teste, use um e-mail comum. O e-mail de comprador de teste do Mercado Pago é recusado.</p>
+      }
+      <div id="paymentBrick_container"></div>
+    }
+
+    @if (phase() === 'pix') {
+      <section class="pix" aria-live="polite">
+        <h2>Pague com Pix</h2>
+        <p>A inscrição confirma sozinha assim que o pagamento cair.</p>
+        @if (qrImage()) {
+          <img [src]="qrImage()" alt="QR Code do Pix" width="240" height="240" />
+        }
+        @if (qrCode()) {
+          <p class="code">{{ qrCode() }}</p>
+          <button type="button" mat-stroked-button (click)="copyPix()">
+            {{ copied() ? 'Código copiado' : 'Copiar código' }}
+          </button>
+        } @else {
+          <p class="muted">Estamos aguardando a confirmação deste pagamento.</p>
+        }
+      </section>
+    }
+
+    @if (phase() === 'confirmed') {
+      <p class="ok" role="status">Pagamento confirmado. Indo para suas inscrições…</p>
+    }
+
+    @if (phase() === 'closed') {
+      <p class="notice">O prazo para pagar esta inscrição acabou.</p>
+      <a mat-flat-button color="primary" [routerLink]="['/e', slug]">Ver o evento</a>
+    }
+  }
+</div>

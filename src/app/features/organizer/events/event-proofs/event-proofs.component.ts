@@ -1,4 +1,5 @@
-import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { DOCUMENT, isPlatformBrowser } from '@angular/common';
+import { Component, OnDestroy, OnInit, PLATFORM_ID, computed, inject, signal } from '@angular/core';
 import { FormArray, FormBuilder, FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -12,10 +13,6 @@ import { MatInputModule } from '@angular/material/input';
 import { getAuthErrorMessage, mapAuthHttpError } from '../../../../core/auth/auth-http.util';
 import { EventsApiService } from '../../../../core/events/events-api.service';
 import { ImageUploadService } from '../../../../core/events/image-upload.service';
-import {
-  PublishValidationError,
-  mapPublishHttpError,
-} from '../../../../core/events/publish-error';
 import { EventDetail, UpdateEventRequest } from '../../../../core/models/event.model';
 import { USER_HOME_ROUTE } from '../../../../core/routing/app-routes';
 
@@ -41,15 +38,15 @@ export class EventProofsComponent implements OnInit, OnDestroy {
   private readonly eventsApi = inject(EventsApiService);
   private readonly imageUpload = inject(ImageUploadService);
   private readonly fb = inject(FormBuilder);
+  private readonly doc = inject(DOCUMENT);
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   readonly homeRoute = USER_HOME_ROUTE;
   readonly eventId = this.route.snapshot.paramMap.get('id') ?? '';
   readonly loading = signal(true);
   readonly saving = signal(false);
-  readonly publishing = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
-  readonly publishErrors = signal<string[]>([]);
   readonly event = signal<EventDetail | null>(null);
 
   /** index → object URL local da arte do percurso (preview antes do upload). */
@@ -62,6 +59,18 @@ export class EventProofsComponent implements OnInit, OnDestroy {
   readonly isClosed = computed(() => this.event()?.status === 'Closed');
   readonly canEdit = computed(() => !this.isClosed() && !this.isCancelled());
   readonly eventCategories = computed(() => this.event()?.categories ?? []);
+  readonly usedLotIds = computed(() => {
+    const ids = new Set<string>();
+    for (const proof of this.event()?.proofs ?? []) {
+      for (const lot of proof.lots ?? []) {
+        if (lot.id && lot.hasRegistrations) {
+          ids.add(lot.id);
+        }
+      }
+    }
+    return ids;
+  });
+  readonly copyPickerIndex = signal<number | null>(null);
 
   readonly form = this.fb.nonNullable.group({
     proofs: this.fb.array([] as ReturnType<EventProofsComponent['createProofGroup']>[]),
@@ -79,8 +88,12 @@ export class EventProofsComponent implements OnInit, OnDestroy {
     this.revokeAllPreviews();
   }
 
-  continuePath(): string {
-    return `/home/eventos/${this.eventId}/continuar`;
+  dashboardPath(): string {
+    return `${this.homeRoute}/eventos/${this.eventId}`;
+  }
+
+  categoriesPath(): string {
+    return `${this.dashboardPath()}/categorias`;
   }
 
   addProof(): void {
@@ -91,12 +104,37 @@ export class EventProofsComponent implements OnInit, OnDestroy {
         lots: [{ name: '1º lote', price: 0 }],
       })
     );
+    this.revealProof(this.proofs.length - 1);
+  }
+
+  /** A prova nova nasce no fim da lista; sem isso o botão fica no topo e ela passa despercebida. */
+  private revealProof(index: number): void {
+    if (!this.isBrowser) {
+      return;
+    }
+    setTimeout(() => {
+      const block = this.doc.getElementById(`proof-${index}`);
+      block?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const name = block?.querySelector('input');
+      if (name instanceof HTMLInputElement) {
+        name.focus();
+      }
+    });
   }
 
   removeProof(index: number): void {
+    if (this.proofHasRegisteredLots(index)) {
+      this.errorMessage.set(
+        'Não é possível remover esta prova: já existem inscrições em um dos lotes.'
+      );
+      return;
+    }
     this.clearPreview(index);
     this.proofs.removeAt(index);
     this.reindexPreviewsAfterRemove(index);
+    if (this.copyPickerIndex() === index) {
+      this.copyPickerIndex.set(null);
+    }
   }
 
   lotsOf(proofIndex: number): FormArray {
@@ -110,7 +148,121 @@ export class EventProofsComponent implements OnInit, OnDestroy {
   }
 
   removeLot(proofIndex: number, lotIndex: number): void {
+    if (this.lotHasRegistrations(proofIndex, lotIndex)) {
+      this.errorMessage.set('Este lote já tem inscrições e não pode ser removido.');
+      return;
+    }
     this.lotsOf(proofIndex).removeAt(lotIndex);
+  }
+
+  proofName(index: number): string {
+    const name = String(this.proofs.at(index).get('name')?.value ?? '').trim();
+    return name || `Prova ${index + 1}`;
+  }
+
+  otherProofsWithLots(destIndex: number): Array<{ index: number; name: string }> {
+    return this.proofs.controls
+      .map((_, index) => ({ index, name: this.proofName(index) }))
+      .filter((item) => item.index !== destIndex && this.lotsOf(item.index).length > 0);
+  }
+
+  toggleCopyPicker(proofIndex: number): void {
+    this.copyPickerIndex.update((current) => (current === proofIndex ? null : proofIndex));
+  }
+
+  lotHasRegistrations(proofIndex: number, lotIndex: number): boolean {
+    const id = String(this.lotsOf(proofIndex).at(lotIndex).get('id')?.value ?? '');
+    return !!id && this.usedLotIds().has(id);
+  }
+
+  proofHasRegisteredLots(proofIndex: number): boolean {
+    return this.lotsOf(proofIndex).controls.some((_, lotIndex) =>
+      this.lotHasRegistrations(proofIndex, lotIndex)
+    );
+  }
+
+  copyLotsFrom(sourceIndex: number, destIndex: number): void {
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+    if (this.proofHasRegisteredLots(destIndex)) {
+      this.errorMessage.set(
+        'Não é possível substituir os lotes desta prova: já existem inscrições.'
+      );
+      this.copyPickerIndex.set(null);
+      return;
+    }
+
+    this.replaceLots(destIndex, this.snapshotLots(sourceIndex));
+    this.copyPickerIndex.set(null);
+    this.successMessage.set(
+      `Lotes copiados de "${this.proofName(sourceIndex)}". Ajuste os preços se precisar.`
+    );
+  }
+
+  applyLotsToAll(sourceIndex: number): void {
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+    const snapshot = this.snapshotLots(sourceIndex);
+    if (snapshot.length === 0) {
+      this.errorMessage.set('Esta prova ainda não tem lotes para copiar.');
+      return;
+    }
+
+    let applied = 0;
+    let skipped = 0;
+    for (let dest = 0; dest < this.proofs.length; dest++) {
+      if (dest === sourceIndex) {
+        continue;
+      }
+      if (this.proofHasRegisteredLots(dest)) {
+        skipped += 1;
+        continue;
+      }
+      this.replaceLots(dest, snapshot);
+      applied += 1;
+    }
+
+    if (applied === 0 && skipped > 0) {
+      this.errorMessage.set(
+        'Nenhuma prova foi alterada: as outras já têm lote com inscrições.'
+      );
+      return;
+    }
+
+    const skipNote =
+      skipped > 0
+        ? ` ${skipped} prova(s) não alterada(s) porque já têm inscrições.`
+        : '';
+    this.successMessage.set(
+      `Lotes aplicados em ${applied} prova(s). Ajuste os preços se precisar.${skipNote}`
+    );
+  }
+
+  private snapshotLots(proofIndex: number) {
+    return this.lotsOf(proofIndex).getRawValue().map((lot) => ({
+      name: lot.name,
+      price: lot.price,
+      startsAtLocal: lot.startsAtLocal,
+      endsAtLocal: lot.endsAtLocal,
+      capacity: lot.capacity,
+    }));
+  }
+
+  private replaceLots(
+    destIndex: number,
+    lots: Array<{
+      name?: string;
+      price?: number;
+      startsAtLocal?: string;
+      endsAtLocal?: string;
+      capacity?: number | null;
+    }>
+  ): void {
+    const dest = this.lotsOf(destIndex);
+    dest.clear();
+    for (const lot of lots) {
+      dest.push(this.createLotGroup(lot));
+    }
   }
 
   selectAllCategories(index: number): void {
@@ -178,45 +330,12 @@ export class EventProofsComponent implements OnInit, OnDestroy {
     if (!(await this.persist())) {
       return;
     }
-    void this.router.navigateByUrl('/home/eventos');
-  }
-
-  async publish(): Promise<void> {
-    if (this.publishing() || this.saving()) {
-      return;
-    }
-
-    if (!(await this.persist())) {
-      return;
-    }
-
-    this.errorMessage.set(null);
-    this.successMessage.set(null);
-    this.publishErrors.set([]);
-    this.publishing.set(true);
-    try {
-      const updated = await firstValueFrom(this.eventsApi.publish(this.eventId)).catch((err) =>
-        mapPublishHttpError(err)
-      );
-      this.event.set(updated);
-      this.successMessage.set(`"${updated.name}" publicado com sucesso.`);
-      void this.router.navigateByUrl('/home/eventos');
-    } catch (error) {
-      if (error instanceof PublishValidationError) {
-        this.publishErrors.set(error.errors);
-        this.errorMessage.set(error.message);
-      } else {
-        this.errorMessage.set(getAuthErrorMessage(error));
-      }
-    } finally {
-      this.publishing.set(false);
-    }
+    void this.router.navigateByUrl(this.dashboardPath());
   }
 
   private async persist(): Promise<boolean> {
     this.errorMessage.set(null);
     this.successMessage.set(null);
-    this.publishErrors.set([]);
 
     if (!this.canEdit()) {
       this.errorMessage.set(
@@ -257,7 +376,7 @@ export class EventProofsComponent implements OnInit, OnDestroy {
   }
 
   back(): void {
-    void this.router.navigateByUrl(this.continuePath());
+    void this.router.navigateByUrl(this.dashboardPath());
   }
 
   private async load(): Promise<void> {
@@ -288,6 +407,7 @@ export class EventProofsComponent implements OnInit, OnDestroy {
           name: proof.name,
           routeImageUrl: proof.routeImageUrl ?? '',
           capacity: proof.capacity ?? null,
+          startsAtLocal: this.toLocalInput(proof.startsAt),
           categoryIds: [...(proof.categoryIds ?? [])],
           lots: (proof.lots ?? []).map((lot) => ({
             id: lot.id ?? undefined,
@@ -295,6 +415,7 @@ export class EventProofsComponent implements OnInit, OnDestroy {
             price: lot.price,
             startsAtLocal: this.toLocalInput(lot.startsAt),
             endsAtLocal: this.toLocalInput(lot.endsAt),
+            capacity: lot.capacity ?? null,
           })),
         })
       );
@@ -312,6 +433,7 @@ export class EventProofsComponent implements OnInit, OnDestroy {
     name?: string;
     routeImageUrl?: string;
     capacity?: number | null;
+    startsAtLocal?: string;
     categoryIds?: string[];
     lots?: Array<{
       id?: string;
@@ -319,6 +441,7 @@ export class EventProofsComponent implements OnInit, OnDestroy {
       price?: number;
       startsAtLocal?: string;
       endsAtLocal?: string;
+      capacity?: number | null;
     }>;
   }) {
     const lots = this.fb.array(
@@ -332,6 +455,7 @@ export class EventProofsComponent implements OnInit, OnDestroy {
       name: [initial?.name ?? '', Validators.required],
       routeImageUrl: [initial?.routeImageUrl ?? ''],
       capacity: [initial?.capacity as number | null],
+      startsAtLocal: [initial?.startsAtLocal ?? ''],
       categoryIds: [initial?.categoryIds ?? ([] as string[])],
       lots,
     });
@@ -343,6 +467,7 @@ export class EventProofsComponent implements OnInit, OnDestroy {
     price?: number;
     startsAtLocal?: string;
     endsAtLocal?: string;
+    capacity?: number | null;
   }) {
     return this.fb.nonNullable.group({
       id: [initial?.id ?? ''],
@@ -350,6 +475,7 @@ export class EventProofsComponent implements OnInit, OnDestroy {
       price: [initial?.price ?? 0, [Validators.required, Validators.min(0)]],
       startsAtLocal: [initial?.startsAtLocal ?? '', Validators.required],
       endsAtLocal: [initial?.endsAtLocal ?? '', Validators.required],
+      capacity: [initial?.capacity as number | null],
     });
   }
 
@@ -362,6 +488,7 @@ export class EventProofsComponent implements OnInit, OnDestroy {
         routeImageUrl: p.routeImageUrl.trim() || null,
         capacity:
           p.capacity == null || p.capacity === ('' as unknown) ? null : Number(p.capacity),
+        startsAt: this.toIsoUtc(p.startsAtLocal),
         categoryIds: p.categoryIds ?? [],
         lots: (p.lots ?? []).map((l) => ({
           id: l.id || null,
@@ -369,6 +496,8 @@ export class EventProofsComponent implements OnInit, OnDestroy {
           price: Number(l.price) || 0,
           startsAt: this.toIsoUtc(l.startsAtLocal)!,
           endsAt: this.toIsoUtc(l.endsAtLocal)!,
+          capacity:
+            l.capacity == null || l.capacity === ('' as unknown) ? null : Number(l.capacity),
         })),
       })),
     };

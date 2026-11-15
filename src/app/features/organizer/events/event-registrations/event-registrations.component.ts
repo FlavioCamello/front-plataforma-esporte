@@ -55,6 +55,7 @@ export class EventRegistrationsComponent implements OnInit, OnDestroy {
     'proofName',
     'categoryName',
     'shirtSize',
+    'answers',
     'priceSnapshot',
     'athletePhone',
     'athleteEmail',
@@ -93,6 +94,14 @@ export class EventRegistrationsComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.sub?.unsubscribe();
+  }
+
+  answersLabel(row: EventRegistrationDto): string {
+    const items = row.answers ?? [];
+    if (items.length === 0) {
+      return '—';
+    }
+    return items.map((a) => `${a.title}: ${a.values.join(', ') || '—'}`).join(' · ');
   }
 
   statusLabel(status: string): string {

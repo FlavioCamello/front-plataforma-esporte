@@ -1,0 +1,118 @@
+<div class="page">
+  <header class="page-head">
+    <a mat-button [routerLink]="eventPath">
+      <mat-icon>arrow_back</mat-icon>
+      Painel do evento
+    </a>
+    <h1>Financeiro</h1>
+    @if (event(); as ev) {
+      <p class="subtitle">{{ ev.name }}</p>
+    }
+  </header>
+
+  @if (errorMessage()) {
+    <p class="error" role="alert">{{ errorMessage() }}</p>
+  }
+
+  @if (loading()) {
+    <p class="muted">Carregando…</p>
+  }
+
+  @if (!loading() && finance(); as f) {
+    <section class="cards" aria-label="Resumo financeiro">
+      <article class="card card--hero">
+        <span class="card-label">
+          <mat-icon>check_circle</mat-icon>
+          Confirmado
+        </span>
+        <strong class="card-value">{{ f.confirmedAmount | currency: 'BRL' }}</strong>
+        <span class="card-meta">
+          {{ f.confirmedCount }} {{ f.confirmedCount === 1 ? 'inscrição' : 'inscrições' }}
+        </span>
+      </article>
+
+      <article class="card card--pending">
+        <span class="card-label">
+          <mat-icon>schedule</mat-icon>
+          A receber
+        </span>
+        <strong class="card-value">{{ f.pendingAmount | currency: 'BRL' }}</strong>
+        <span class="card-meta">
+          {{ f.pendingCount }} {{ f.pendingCount === 1 ? 'pendente' : 'pendentes' }}
+        </span>
+      </article>
+
+      <article class="card">
+        <span class="card-label">
+          <mat-icon>sell</mat-icon>
+          Ticket médio
+        </span>
+        <strong class="card-value">
+          @if (f.averageTicket != null) {
+            {{ f.averageTicket | currency: 'BRL' }}
+          } @else {
+            —
+          }
+        </strong>
+        <span class="card-meta">inscrições pagas confirmadas</span>
+      </article>
+    </section>
+
+    @if (isEmpty()) {
+      <p class="empty">Nenhuma inscrição ainda. Os números aparecem aqui assim que os atletas se inscreverem.</p>
+    } @else {
+      <div class="legend" aria-hidden="true">
+        <span><i class="dot dot--confirmed"></i> Confirmado</span>
+        <span><i class="dot dot--pending"></i> A receber</span>
+      </div>
+
+      @for (section of sections(); track section.key) {
+        <section class="breakdown" [attr.aria-label]="section.title">
+          <h2>
+            <mat-icon>{{ section.icon }}</mat-icon>
+            {{ section.title }}
+          </h2>
+          <ul>
+            @for (row of section.rows; track row.id) {
+              <li class="row">
+                <div class="row-head">
+                  <span class="row-name">
+                    {{ row.name }}
+                    @if (row.group) {
+                      <small>{{ row.group }}</small>
+                    }
+                  </span>
+                  <strong class="row-amount">{{ row.confirmedAmount | currency: 'BRL' }}</strong>
+                </div>
+                <div class="bar" role="presentation">
+                  <div class="bar-fill" [style.width.%]="barPercent(row, section.rows)">
+                    <div class="bar-confirmed" [style.width.%]="confirmedShare(row, section.rows)"></div>
+                  </div>
+                </div>
+                <div class="row-meta">
+                  <span>{{ row.confirmedCount }} confirmadas</span>
+                  @if (row.pendingCount > 0) {
+                    <span class="pending">
+                      {{ row.pendingCount }} pendentes · {{ row.pendingAmount | currency: 'BRL' }}
+                    </span>
+                  }
+                </div>
+              </li>
+            }
+          </ul>
+        </section>
+      }
+    }
+
+    <footer class="foot">
+      @if (f.cancelledCount > 0) {
+        <span>
+          {{ f.cancelledCount }}
+          {{ f.cancelledCount === 1 ? 'inscrição cancelada ou expirada' : 'inscrições canceladas ou expiradas' }}
+          (fora dos totais).
+        </span>
+      }
+      <span>Valores brutos, antes da tarifa do meio de pagamento.</span>
+    </footer>
+  }
+</div>

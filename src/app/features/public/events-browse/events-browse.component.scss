@@ -1,10 +1,15 @@
+:host {
+  display: block;
+  min-height: 100%;
+}
+
 .browse {
-  min-height: 100dvh;
+  min-height: 100%;
   background:
-    radial-gradient(120% 80% at 10% -10%, rgba(42, 157, 143, 0.22), transparent 55%),
-    radial-gradient(90% 60% at 100% 0%, rgba(232, 93, 4, 0.14), transparent 50%),
-    #0b1412;
-  color: #f4f7f5;
+    radial-gradient(120% 80% at 10% -10%, rgba(200, 242, 90, 0.16), transparent 55%),
+    radial-gradient(90% 60% at 100% 0%, rgba(255, 78, 58, 0.2), transparent 50%),
+    var(--brand-ink);
+  color: var(--brand-sand);
   padding-bottom: 3rem;
 }
 
@@ -17,16 +22,11 @@
   top: 0;
   z-index: 5;
   backdrop-filter: blur(10px);
-  background: rgba(11, 20, 18, 0.72);
+  background: rgba(19, 32, 51, 0.82);
 }
 
 .brand {
-  font-family: 'Barlow Condensed', sans-serif;
-  font-weight: 700;
-  font-size: 1.25rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: #f4f7f5;
+  color: var(--brand-sand);
   text-decoration: none;
 }
 
@@ -128,12 +128,12 @@
 .filters input:focus,
 .filters select:focus {
   outline: none;
-  border-color: rgba(42, 157, 143, 0.7);
-  background: rgba(42, 157, 143, 0.08);
+  border-color: rgba(200, 242, 90, 0.7);
+  background: rgba(200, 242, 90, 0.08);
 }
 
 .filters select option {
-  color: #0b1412;
+  color: var(--brand-ink);
 }
 
 .filters .clear {
@@ -148,8 +148,8 @@
 }
 
 .filters .clear:hover {
-  border-color: rgba(232, 93, 4, 0.7);
-  color: #ffb783;
+  border-color: rgba(255, 78, 58, 0.7);
+  color: var(--brand-pulse);
 }
 
 .result-count {
@@ -202,7 +202,7 @@
 
 @media (hover: hover) {
   .card:hover {
-    border-color: rgba(42, 157, 143, 0.55);
+    border-color: rgba(200, 242, 90, 0.55);
     transform: translateY(-2px);
   }
 }
@@ -227,8 +227,8 @@
 }
 
 .badge.open {
-  background: #2a9d8f;
-  color: #041412;
+  background: var(--brand-court);
+  color: var(--brand-ink);
 }
 
 .badge.closed {
@@ -246,7 +246,7 @@
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #2a9d8f;
+  color: var(--brand-court);
 }
 
 .card-body h2 {

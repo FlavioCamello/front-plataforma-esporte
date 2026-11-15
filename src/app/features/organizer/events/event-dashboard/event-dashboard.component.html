@@ -1,0 +1,182 @@
+@if (loading()) {
+  <section class="panel">
+    <p>Carregando evento…</p>
+  </section>
+} @else if (!event()) {
+  <section class="panel">
+    <p class="error" role="alert">{{ errorMessage() }}</p>
+    <a mat-button [routerLink]="listPath">Voltar aos meus eventos</a>
+  </section>
+} @else {
+  <a mat-button class="back-link" [routerLink]="listPath">
+    <mat-icon>arrow_back</mat-icon>
+    Meus eventos
+  </a>
+
+  <header class="panel header">
+    <div class="header-top">
+      <span class="status" [attr.data-status]="status()">{{ statusLabel() }}</span>
+      @if (dateRange()) {
+        <span class="date">{{ dateRange() }}</span>
+      }
+    </div>
+    <h1>{{ event()?.name }}</h1>
+
+    @if (isCancelled()) {
+      <p class="warn">Evento cancelado — o painel fica somente para consulta.</p>
+    } @else if (isClosed()) {
+      <p class="hint">Inscrições encerradas — algumas seções não podem mais ser alteradas.</p>
+    } @else {
+      <div class="progress" aria-live="polite">
+        <div class="progress-label">
+          <strong>{{ requiredDone() }} de {{ requiredTotal }}</strong> seções obrigatórias completas
+        </div>
+        <div
+          class="progress-bar"
+          role="progressbar"
+          [attr.aria-valuenow]="progressPercent()"
+          aria-valuemin="0"
+          aria-valuemax="100"
+        >
+          <span [style.width.%]="progressPercent()"></span>
+        </div>
+      </div>
+    }
+
+    @if (errorMessage()) {
+      <p class="error" role="alert">{{ errorMessage() }}</p>
+    }
+    @if (successMessage()) {
+      <p class="success" role="status">{{ successMessage() }}</p>
+    }
+    @if (shareMessage()) {
+      <p class="success" role="status">{{ shareMessage() }}</p>
+    }
+    @if (publishErrors().length > 0) {
+      <div class="error" role="alert">
+        <strong>Não foi possível publicar. Corrija os itens:</strong>
+        <ul>
+          @for (msg of publishErrors(); track msg) {
+            <li>{{ msg }}</li>
+          }
+        </ul>
+      </div>
+    }
+
+    <div class="header-actions">
+      <a mat-stroked-button [routerLink]="basePath + '/revisao'">
+        <mat-icon>fact_check</mat-icon>
+        Revisão
+      </a>
+      <a mat-stroked-button [routerLink]="basePath + '/previa'">
+        <mat-icon>visibility</mat-icon>
+        Ver prévia
+      </a>
+      @if (showPublish()) {
+        <button
+          mat-flat-button
+          color="accent"
+          type="button"
+          (click)="publish()"
+          [disabled]="publishing() || !readiness()?.canPublish"
+        >
+          <mat-icon>publish</mat-icon>
+          {{
+            publishing()
+              ? 'Publicando…'
+              : status() === 'Published'
+                ? 'Republicar'
+                : 'Publicar'
+          }}
+        </button>
+      }
+      @if (showPublicPage()) {
+        <a mat-stroked-button [href]="'/e/' + event()?.slug" target="_blank" rel="noopener">
+          <mat-icon>open_in_new</mat-icon>
+          Página pública
+        </a>
+      }
+      @if (showShare()) {
+        <button mat-stroked-button type="button" (click)="copyPublicLink()">
+          <mat-icon>link</mat-icon>
+          Copiar link
+        </button>
+        <button mat-stroked-button type="button" (click)="sharePublicLink()">
+          <mat-icon>share</mat-icon>
+          Compartilhar
+        </button>
+      }
+      @if (showRegistrations()) {
+        <a mat-stroked-button [routerLink]="basePath + '/inscritos'">
+          <mat-icon>groups</mat-icon>
+          Inscritos
+        </a>
+        <a mat-stroked-button [routerLink]="basePath + '/financeiro'">
+          <mat-icon>payments</mat-icon>
+          Financeiro
+        </a>
+      }
+    </div>
+    @if (showPublish() && !readiness()?.canPublish) {
+      <p class="hint tight">Complete as seções pendentes para liberar a publicação.</p>
+    }
+  </header>
+
+  <ol class="sections">
+    @for (card of cards(); track card.key; let i = $index) {
+      <li>
+        <a class="section-card" [routerLink]="sectionLink(card)" [attr.data-status]="card.status">
+          <span class="step">{{ i + 1 }}</span>
+          <div class="section-body">
+            <div class="section-head">
+              <mat-icon class="section-icon" aria-hidden="true">{{ card.icon }}</mat-icon>
+              <h2>{{ card.title }}</h2>
+              <span class="chip" [attr.data-status]="card.status">
+                <mat-icon aria-hidden="true">{{ statusIcon(card) }}</mat-icon>
+                {{ statusText(card) }}
+              </span>
+            </div>
+            <p class="section-desc">{{ card.description }}</p>
+            @if (card.errors.length > 0) {
+              <ul class="section-errors">
+                @for (msg of card.errors; track msg) {
+                  <li>{{ msg }}</li>
+                }
+              </ul>
+            }
+          </div>
+          <mat-icon class="chevron" aria-hidden="true">chevron_right</mat-icon>
+        </a>
+      </li>
+    }
+    <li class="review-item">
+      <a
+        class="section-card review"
+        [routerLink]="basePath + '/revisao'"
+        [attr.data-status]="readiness()?.canPublish ? 'complete' : 'optional'"
+      >
+        <span class="step">{{ cards().length + 1 }}</span>
+        <div class="section-body">
+          <div class="section-head">
+            <mat-icon class="section-icon" aria-hidden="true">fact_check</mat-icon>
+            <h2>Revisão e prévia</h2>
+            <span class="chip" data-status="complete">
+              <mat-icon aria-hidden="true">visibility</mat-icon>
+              Prévia
+            </span>
+            @if (warningsCount() > 0) {
+              <span class="chip" data-status="pending">
+                <mat-icon aria-hidden="true">warning</mat-icon>
+                {{ warningsCount() }} {{ warningsCount() === 1 ? 'aviso' : 'avisos' }}
+              </span>
+            }
+          </div>
+          <p class="section-desc">
+            Resumo do cadastro, ver a página como o atleta vê e gerar link para sócio ou patrocinador
+          </p>
+        </div>
+        <mat-icon class="chevron" aria-hidden="true">chevron_right</mat-icon>
+      </a>
+    </li>
+  </ol>
+}

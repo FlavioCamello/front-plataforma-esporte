@@ -1,0 +1,67 @@
+<div class="md-editor" [class.is-disabled]="disabled">
+  @if (label) {
+    <p class="md-label">{{ label }}</p>
+  }
+  <div class="md-toolbar" role="toolbar" aria-label="Formatação">
+    <button
+      mat-stroked-button
+      type="button"
+      (mousedown)="$event.preventDefault()"
+      (click)="wrap('**', '**')"
+      [disabled]="disabled"
+      aria-label="Negrito"
+    >
+      <mat-icon>format_bold</mat-icon>
+    </button>
+    <button
+      mat-stroked-button
+      type="button"
+      (mousedown)="$event.preventDefault()"
+      (click)="wrap('*', '*')"
+      [disabled]="disabled"
+      aria-label="Itálico"
+    >
+      <mat-icon>format_italic</mat-icon>
+    </button>
+    <button
+      mat-stroked-button
+      type="button"
+      (mousedown)="$event.preventDefault()"
+      (click)="list()"
+      [disabled]="disabled"
+      aria-label="Lista"
+    >
+      <mat-icon>format_list_bulleted</mat-icon>
+    </button>
+    <button
+      mat-stroked-button
+      type="button"
+      (mousedown)="$event.preventDefault()"
+      (click)="link()"
+      [disabled]="disabled"
+      aria-label="Link"
+    >
+      <mat-icon>link</mat-icon>
+    </button>
+    <button
+      mat-stroked-button
+      type="button"
+      (mousedown)="$event.preventDefault()"
+      (click)="heading()"
+      [disabled]="disabled"
+      aria-label="Subtítulo"
+    >
+      <mat-icon>title</mat-icon>
+    </button>
+  </div>
+  <textarea
+    #area
+    [value]="value"
+    [rows]="rows"
+    [attr.maxlength]="maxlength"
+    [placeholder]="placeholder"
+    [disabled]="disabled"
+    (input)="onInput($event)"
+    (blur)="markTouched()"
+  ></textarea>
+</div>

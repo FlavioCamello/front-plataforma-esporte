@@ -12,6 +12,17 @@
     </mat-card-content>
   </mat-card>
 } @else {
+  <nav class="section-nav">
+    <a mat-button class="back-link" [routerLink]="dashboardPath()">
+      <mat-icon>arrow_back</mat-icon>
+      Painel do evento
+    </a>
+    <a mat-button [routerLink]="dashboardPath() + '/revisao'">
+      <mat-icon>fact_check</mat-icon>
+      Revisão e prévia
+    </a>
+  </nav>
+
   <mat-card>
     <mat-card-header>
       <mat-card-title>Provas e percursos</mat-card-title>
@@ -27,18 +38,6 @@
       @if (successMessage()) {
         <p class="success" role="status">{{ successMessage() }}</p>
       }
-      @if (publishErrors().length > 0) {
-        <div class="publish-errors" role="alert">
-          <strong>Ajustes necessários para publicar:</strong>
-          <ul>
-            @for (msg of publishErrors(); track msg) {
-              <li>{{ msg }}</li>
-            }
-          </ul>
-          <p class="hint">O rascunho já foi salvo — corrija os itens e clique em Publicar novamente.</p>
-        </div>
-      }
-
       @if (isCancelled()) {
         <p class="warn">Este evento foi cancelado e não pode ser editado.</p>
       }
@@ -48,8 +47,8 @@
 
       @if (eventCategories().length === 0) {
         <p class="warn">
-          Cadastre ao menos uma categoria na etapa anterior antes de criar provas.
-          <a mat-button [routerLink]="continuePath()">Voltar às categorias</a>
+          Cadastre ao menos uma categoria antes de criar provas.
+          <a mat-button [routerLink]="categoriesPath()">Ir para categorias</a>
         </p>
       }
 
@@ -70,7 +69,7 @@
 
         <div formArrayName="proofs">
           @for (ctrl of proofs.controls; track $index; let i = $index) {
-            <div class="proof" [formGroupName]="i">
+            <div class="proof" [id]="'proof-' + i" [formGroupName]="i">
               <h3>Prova {{ i + 1 }}</h3>
               <div class="grid">
                 <mat-form-field appearance="outline">
@@ -81,6 +80,11 @@
                   <mat-label>Vagas</mat-label>
                   <input matInput type="number" formControlName="capacity" min="0" />
                   <mat-hint>Limite desta prova; deixe vazio se ilimitado</mat-hint>
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>Largada (opcional)</mat-label>
+                  <input matInput type="datetime-local" formControlName="startsAtLocal" />
+                  <mat-hint>Horário desta prova; vazio usa a data do evento</mat-hint>
                 </mat-form-field>
               </div>
 
@@ -154,17 +158,45 @@
               <div class="lots-block" formArrayName="lots">
                 <p class="field-label">Lotes de preço desta prova</p>
                 <p class="section-help">
-                  Cada percurso tem seus próprios lotes (nome, preço e vigência). Na inscrição, o
-                  atleta paga o lote vigente <strong>desta prova</strong>. Use preço 0 para
-                  gratuito.
+                  Cada percurso tem seus próprios lotes (nome, preço, vigência e vagas opcionais).
+                  Na inscrição, o atleta paga o lote vigente <strong>desta prova</strong>. Use
+                  preço 0 para gratuito. Se o lote esgotar as vagas, o próximo começa a valer na
+                  hora.
                 </p>
                 @if (canEdit()) {
-                  <div class="cat-actions">
+                  <div class="cat-actions lot-copy-actions">
                     <button mat-stroked-button type="button" (click)="addLot(i)">
                       <mat-icon>add</mat-icon>
                       Adicionar lote
                     </button>
+                    @if (otherProofsWithLots(i).length) {
+                      <button mat-stroked-button type="button" (click)="toggleCopyPicker(i)">
+                        <mat-icon>content_copy</mat-icon>
+                        Copiar lotes de…
+                      </button>
+                    }
+                    @if (lotsOf(i).length > 0 && proofs.length > 1) {
+                      <button mat-stroked-button type="button" (click)="applyLotsToAll(i)">
+                        <mat-icon>copy_all</mat-icon>
+                        Aplicar a todas as provas
+                      </button>
+                    }
                   </div>
+                  @if (copyPickerIndex() === i) {
+                    <ul class="copy-sources">
+                      @for (src of otherProofsWithLots(i); track src.index) {
+                        <li>
+                          <button
+                            mat-stroked-button
+                            type="button"
+                            (click)="copyLotsFrom(src.index, i)"
+                          >
+                            {{ src.name }}
+                          </button>
+                        </li>
+                      }
+                    </ul>
+                  }
                 }
                 @for (lotCtrl of lotsOf(i).controls; track $index; let j = $index) {
                   <div class="lot" [formGroupName]="j">
@@ -185,11 +217,20 @@
                         <mat-label>Fim do lote</mat-label>
                         <input matInput type="datetime-local" formControlName="endsAtLocal" />
                       </mat-form-field>
+                      <mat-form-field appearance="outline">
+                        <mat-label>Vagas deste lote</mat-label>
+                        <input matInput type="number" formControlName="capacity" min="0" />
+                        <mat-hint>Opcional. Vazio = só data</mat-hint>
+                      </mat-form-field>
                     </div>
                     @if (canEdit()) {
-                      <button mat-button color="warn" type="button" (click)="removeLot(i, j)">
-                        Remover lote
-                      </button>
+                      @if (lotHasRegistrations(i, j)) {
+                        <p class="hint">Este lote já tem inscrições e não pode ser removido.</p>
+                      } @else {
+                        <button mat-button color="warn" type="button" (click)="removeLot(i, j)">
+                          Remover lote
+                        </button>
+                      }
                     }
                   </div>
                 } @empty {
@@ -201,9 +242,15 @@
               </div>
 
               @if (canEdit()) {
-                <button mat-button color="warn" type="button" (click)="removeProof(i)">
-                  Remover prova
-                </button>
+                @if (proofHasRegisteredLots(i)) {
+                  <p class="hint">
+                    Esta prova tem lote com inscrições e não pode ser removida.
+                  </p>
+                } @else {
+                  <button mat-button color="warn" type="button" (click)="removeProof(i)">
+                    Remover prova
+                  </button>
+                }
               }
             </div>
           } @empty {
@@ -212,28 +259,20 @@
         </div>
 
         <div class="actions">
-          <button mat-button type="button" (click)="back()" [disabled]="saving() || publishing()">
+          <button mat-button type="button" (click)="back()" [disabled]="saving()">
             Voltar
           </button>
-          <button
-            mat-stroked-button
-            color="primary"
-            type="button"
-            (click)="save()"
-            [disabled]="saving() || publishing() || !canEdit()"
-          >
-            {{ saving() && !publishing() ? 'Salvando…' : 'Salvar como rascunho' }}
-          </button>
-          <button
-            mat-flat-button
-            color="accent"
-            type="button"
-            (click)="publish()"
-            [disabled]="saving() || publishing() || !canEdit()"
-          >
-            <mat-icon>publish</mat-icon>
-            {{ publishing() ? 'Publicando…' : 'Publicar' }}
-          </button>
+          @if (canEdit()) {
+            <button
+              mat-flat-button
+              color="primary"
+              type="button"
+              (click)="save()"
+              [disabled]="saving()"
+            >
+              {{ saving() ? 'Salvando…' : 'Salvar' }}
+            </button>
+          }
         </div>
       </form>
     </mat-card-content>

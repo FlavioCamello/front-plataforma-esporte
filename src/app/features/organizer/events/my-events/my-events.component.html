@@ -17,20 +17,6 @@
     @if (successMessage()) {
       <p class="success" role="status">{{ successMessage() }}</p>
     }
-    @if (publishErrors(); as pubErr) {
-      <div class="publish-errors" role="alert">
-        <div class="publish-errors-header">
-          <strong>Não foi possível publicar. Corrija os itens:</strong>
-          <button mat-button type="button" (click)="dismissPublishErrors()">Fechar</button>
-        </div>
-        <ul>
-          @for (msg of pubErr.errors; track msg) {
-            <li>{{ msg }}</li>
-          }
-        </ul>
-      </div>
-    }
-
     <div class="toolbar">
       <mat-form-field appearance="outline" class="status-filter">
         <mat-label>Status</mat-label>
@@ -76,7 +62,7 @@
           <ng-container matColumnDef="startsAt">
             <th mat-header-cell *matHeaderCellDef>Início</th>
             <td mat-cell *matCellDef="let row">
-              {{ row.startsAt ? (row.startsAt | date: 'dd/MM/yyyy HH:mm') : '—' }}
+              {{ dateRange(row) || '—' }}
             </td>
           </ng-container>
 
@@ -107,30 +93,6 @@
                   Abrir
                   <mat-icon iconPositionEnd>arrow_forward</mat-icon>
                 </a>
-                @if (canViewRegistrations(row.status)) {
-                  <a mat-stroked-button [routerLink]="registrationsRoute(row.id)">
-                    <mat-icon>groups</mat-icon>
-                    Inscritos
-                  </a>
-                }
-                @if (canPublish(row.status)) {
-                  <button
-                    mat-flat-button
-                    color="accent"
-                    type="button"
-                    (click)="publish(row.id)"
-                    [disabled]="isBusy(row.id)"
-                  >
-                    <mat-icon>publish</mat-icon>
-                    {{
-                      publishingId() === row.id
-                        ? 'Publicando…'
-                        : row.status === 'Published'
-                          ? 'Republicar'
-                          : 'Publicar'
-                    }}
-                  </button>
-                }
                 @if (canClose(row.status)) {
                   <button
                     mat-stroked-button

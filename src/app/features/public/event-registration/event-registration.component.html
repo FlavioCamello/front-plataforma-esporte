@@ -15,8 +15,8 @@
       <mat-card-header>
         <mat-card-title>Inscrição — {{ event()!.name }}</mat-card-title>
         <mat-card-subtitle>
-          @if (event()!.startsAt) {
-            {{ event()!.startsAt | date: "d 'de' MMMM yyyy" }}
+          @if (dateRange()) {
+            {{ dateRange() }}
           }
           @if (event()!.venueName) {
             · {{ event()!.venueName }}
@@ -32,7 +32,13 @@
           <p class="ok" role="status">{{ successMessage() }}</p>
         }
 
-        @if (event()!.registrationOpen) {
+        @if (isOrganizer()) {
+          <p class="notice" role="status">
+            Esta conta é de organizador e não pode se inscrever. Entre com um atleta para participar.
+          </p>
+        } @else if (eventSoldOut()) {
+          <p class="err" role="status">Vagas esgotadas para este evento.</p>
+        } @else if (event()!.registrationOpen) {
           <form class="form" [formGroup]="form" (ngSubmit)="submit()">
             <mat-form-field appearance="outline" class="full">
               <mat-label>Percurso</mat-label>
@@ -47,15 +53,20 @@
               <mat-label>Categoria</mat-label>
               <mat-select formControlName="categoryId" [disabled]="!form.controls.proofId.value">
                 @for (cat of availableCategories(); track cat.id) {
-                  <mat-option [value]="cat.id">
+                  <mat-option [value]="cat.id" [disabled]="!!cat.soldOut">
                     {{ cat.name }}
-                    @if (cat.discountPercent && cat.discountPercent > 0) {
+                    @if (cat.soldOut) {
+                      · Esgotado
+                    } @else if (cat.discountPercent && cat.discountPercent > 0) {
                       · {{ cat.discountPercent }}% OFF
                     }
                   </mat-option>
                 }
               </mat-select>
             </mat-form-field>
+            @if (allCategoriesSoldOut()) {
+              <p class="muted">Todas as categorias deste percurso estão esgotadas.</p>
+            }
 
             @if (priceInfo(); as price) {
               <div class="price-box" role="status">
@@ -91,6 +102,49 @@
                   }
                 </mat-select>
               </mat-form-field>
+            }
+
+            @if (visibleQuestions().length) {
+              <div class="questions">
+                <h3>Perguntas do organizador</h3>
+                @for (q of visibleQuestions(); track q.id) {
+                  @if (q.type === 'Text') {
+                    <mat-form-field appearance="outline" class="full">
+                      <mat-label>{{ q.title }}{{ q.required ? ' *' : '' }}</mat-label>
+                      <input
+                        matInput
+                        [value]="textValue(q.id!)"
+                        [attr.maxlength]="q.maxLength || 200"
+                        (input)="setText(q.id!, $any($event.target).value)"
+                      />
+                    </mat-form-field>
+                  } @else if (q.type === 'MultipleChoice') {
+                    <fieldset class="multi">
+                      <legend>{{ q.title }}{{ q.required ? ' *' : '' }}</legend>
+                      @for (opt of q.options; track opt) {
+                        <mat-checkbox
+                          [checked]="isMultiChecked(q.id!, opt)"
+                          (change)="toggleMulti(q.id!, opt, $event.checked)"
+                        >
+                          {{ opt }}
+                        </mat-checkbox>
+                      }
+                    </fieldset>
+                  } @else {
+                    <mat-form-field appearance="outline" class="full">
+                      <mat-label>{{ q.title }}{{ q.required ? ' *' : '' }}</mat-label>
+                      <mat-select
+                        [value]="textValue(q.id!)"
+                        (selectionChange)="setSingle(q.id!, $event.value)"
+                      >
+                        @for (opt of q.options; track opt) {
+                          <mat-option [value]="opt">{{ opt }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+                  }
+                }
+              </div>
             }
 
             <div class="regulation">

@@ -1,0 +1,33 @@
+.md {
+  line-height: 1.55;
+}
+
+.md :is(p, ul, ol, h3) {
+  margin: 0 0 0.7rem;
+}
+
+.md :is(p, ul, ol, h3):last-child {
+  margin-bottom: 0;
+}
+
+.md ul,
+.md ol {
+  padding-left: 1.25rem;
+}
+
+.md h3 {
+  font-family: var(--brand-font-title, 'Barlow Condensed', sans-serif);
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.md a {
+  color: var(--brand-orange, #e85d04);
+  text-underline-offset: 0.15em;
+}
+
+.md-empty {
+  margin: 0;
+  line-height: 1.55;
+}

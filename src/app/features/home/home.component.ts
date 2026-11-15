@@ -5,11 +5,12 @@ import { MatCardModule } from '@angular/material/card';
 
 import { AuthService } from '../../core/auth/auth.service';
 import { USER_HOME_ROUTE } from '../../core/routing/app-routes';
+import { BrandMarkComponent } from '../../shared/brand-mark/brand-mark.component';
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [RouterLink, MatCardModule, MatButtonModule],
+  imports: [RouterLink, MatCardModule, MatButtonModule, BrandMarkComponent],
   templateUrl: './home.component.html',
   styleUrl: './home.component.scss',
 })

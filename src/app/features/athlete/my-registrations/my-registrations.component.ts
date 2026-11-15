@@ -1,5 +1,5 @@
-import { DatePipe, isPlatformBrowser } from '@angular/common';
-import { Component, OnInit, PLATFORM_ID, computed, inject, signal } from '@angular/core';
+import { DatePipe } from '@angular/common';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -20,7 +20,6 @@ import { PUBLIC_EVENTS_ROUTE, USER_HOME_ROUTE } from '../../../core/routing/app-
 export class MyRegistrationsComponent implements OnInit {
   private readonly api = inject(RegistrationsApiService);
   private readonly route = inject(ActivatedRoute);
-  private readonly platformId = inject(PLATFORM_ID);
 
   readonly homeRoute = USER_HOME_ROUTE;
   readonly publicEventsRoute = PUBLIC_EVENTS_ROUTE;
@@ -74,13 +73,6 @@ export class MyRegistrationsComponent implements OnInit {
 
   eventLink(item: MyRegistrationDto): string[] | null {
     return item.eventSlug ? ['/e', item.eventSlug] : null;
-  }
-
-  resumeCheckout(item: MyRegistrationDto): void {
-    if (!item.checkoutUrl || !isPlatformBrowser(this.platformId)) {
-      return;
-    }
-    window.location.href = item.checkoutUrl;
   }
 
   private readPaymentQuery(): void {

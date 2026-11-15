@@ -1,0 +1,143 @@
+@if (loading()) {
+  <mat-card>
+    <mat-card-content>
+      <p>Carregando questionário…</p>
+    </mat-card-content>
+  </mat-card>
+} @else if (!event() && errorMessage()) {
+  <mat-card class="gate">
+    <mat-card-content>
+      <p class="error" role="alert">{{ errorMessage() }}</p>
+      <a mat-button [routerLink]="homeRoute">Voltar ao início</a>
+    </mat-card-content>
+  </mat-card>
+} @else {
+  <nav class="section-nav">
+    <a mat-button class="back-link" [routerLink]="dashboardPath()">
+      <mat-icon>arrow_back</mat-icon>
+      Painel do evento
+    </a>
+    <a mat-button [routerLink]="dashboardPath() + '/revisao'">
+      <mat-icon>fact_check</mat-icon>
+      Revisão e prévia
+    </a>
+  </nav>
+
+  <mat-card>
+    <mat-card-header>
+      <mat-card-title>Questionário</mat-card-title>
+      <mat-card-subtitle>
+        {{ event()?.name }} · perguntas extras na inscrição (não peça o que já está no cadastro)
+      </mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content [formGroup]="form">
+      @if (errorMessage()) {
+        <p class="error" role="alert">{{ errorMessage() }}</p>
+      }
+      @if (successMessage()) {
+        <p class="success" role="status">{{ successMessage() }}</p>
+      }
+      @if (isCancelled()) {
+        <p class="warn">Este evento foi cancelado e não pode ser editado.</p>
+      }
+      @if (isClosed()) {
+        <p class="hint">Evento encerrado: o questionário não pode ser alterado.</p>
+      }
+
+      <p class="section-help">
+        Se já houver inscritos, apagar ou mudar uma pergunta <strong>não apaga</strong> as respostas
+        antigas — elas ficam com o texto de quando a pessoa se inscreveu.
+      </p>
+
+      <mat-slide-toggle formControlName="enabled">Ativar questionário na inscrição</mat-slide-toggle>
+
+      @if (canEdit()) {
+        <div class="section-actions">
+          <button mat-stroked-button type="button" (click)="addQuestion()">
+            <mat-icon>add</mat-icon>
+            Nova pergunta
+          </button>
+          <button mat-button type="button" (click)="addPreset('bib')">Nome no peito</button>
+          <button mat-button type="button" (click)="addPreset('team')">Equipe / assessoria</button>
+          <button mat-button type="button" (click)="addPreset('emergency')">
+            Contato de emergência
+          </button>
+        </div>
+      }
+
+      @for (ctrl of questions.controls; track $index; let i = $index) {
+        <div class="question" [formGroup]="$any(ctrl)">
+          <div class="grid">
+            <mat-form-field appearance="outline" class="full">
+              <mat-label>Pergunta</mat-label>
+              <input matInput formControlName="title" maxlength="200" />
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Tipo</mat-label>
+              <mat-select formControlName="type">
+                @for (opt of typeOptions; track opt.value) {
+                  <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            @if (!isChoice(i)) {
+              <mat-form-field appearance="outline">
+                <mat-label>Limite de caracteres</mat-label>
+                <input matInput type="number" formControlName="maxLength" min="1" max="500" />
+              </mat-form-field>
+            }
+          </div>
+          <mat-checkbox formControlName="required">Obrigatória</mat-checkbox>
+
+          @if (isChoice(i)) {
+            <mat-form-field appearance="outline" class="full">
+              <mat-label>Opções (uma por linha)</mat-label>
+              <textarea matInput formControlName="optionsText" rows="3"></textarea>
+              <mat-hint>Pelo menos duas opções distintas.</mat-hint>
+            </mat-form-field>
+          }
+
+          @if (proofs().length) {
+            <p class="field-label">Aparece em quais percursos?</p>
+            <p class="hint">Deixe todos marcados para valer em todas as provas.</p>
+            <div class="proof-list">
+              @for (proof of proofs(); track proof.id) {
+                <mat-checkbox
+                  [checked]="hasProof(i, proof.id!)"
+                  (change)="toggleProof(i, proof.id!, $event.checked)"
+                  [disabled]="!canEdit()"
+                >
+                  {{ proof.name }}
+                </mat-checkbox>
+              }
+            </div>
+          }
+
+          @if (canEdit()) {
+            <button mat-button color="warn" type="button" (click)="removeQuestion(i)">
+              Remover pergunta
+            </button>
+          }
+        </div>
+      } @empty {
+        <p class="hint">Nenhuma pergunta ainda. Use um modelo ou adicione a sua.</p>
+      }
+    </mat-card-content>
+
+    <mat-card-actions align="end">
+      <button mat-button type="button" (click)="back()">Voltar</button>
+      @if (canEdit()) {
+        <button
+          mat-flat-button
+          color="primary"
+          type="button"
+          [disabled]="saving()"
+          (click)="save()"
+        >
+          {{ saving() ? 'Salvando…' : 'Salvar' }}
+        </button>
+      }
+    </mat-card-actions>
+  </mat-card>
+}

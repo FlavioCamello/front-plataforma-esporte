@@ -68,10 +68,14 @@
                     }
                   </p>
                   <div class="actions">
-                    @if (item.status === 'Pending' && item.checkoutUrl) {
-                      <button mat-flat-button color="accent" type="button" (click)="resumeCheckout(item)">
+                    @if (item.status === 'Pending' && item.eventSlug) {
+                      <a
+                        mat-flat-button
+                        color="accent"
+                        [routerLink]="['/e', item.eventSlug, 'pagamento', item.id]"
+                      >
                         Pagar
-                      </button>
+                      </a>
                     }
                     @if (eventLink(item); as link) {
                       <a mat-stroked-button color="primary" [routerLink]="link">Ver página do evento</a>

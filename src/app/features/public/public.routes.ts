@@ -17,6 +17,14 @@ export const PUBLIC_EVENT_ROUTES: Routes = [
       ),
   },
   {
+    path: ':slug/pagamento/:registrationId',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./registration-payment/registration-payment.component').then(
+        (m) => m.RegistrationPaymentComponent
+      ),
+  },
+  {
     path: ':slug/inscricao',
     canActivate: [authGuard],
     loadComponent: () =>

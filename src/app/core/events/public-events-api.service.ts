@@ -60,4 +60,11 @@ export class PublicEventsApiService {
       `${this.baseUrl}${this.publicPath}/${encodeURIComponent(slug)}`
     );
   }
+
+  /** UC-38 — prévia via link temporário (sem login). */
+  getSharedPreview(token: string): Observable<PublicEventDetail> {
+    return this.http.get<PublicEventDetail>(
+      `${this.baseUrl}${this.publicPath}/preview/${encodeURIComponent(token)}`
+    );
+  }
 }

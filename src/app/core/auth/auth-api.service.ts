@@ -3,6 +3,7 @@ import { Injectable } from '@angular/core';
 import { map, Observable } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
+import { ChangePasswordRequest, UpdateAccountRequest } from '../models/account.model';
 import { AuthUser } from '../models/auth-user.model';
 import { CompleteProfileRequest } from '../models/complete-profile.model';
 import { GoogleAuthStatus } from '../models/google-auth-status.model';
@@ -86,6 +87,24 @@ export class AuthApiService {
         ? request.responsibleDocument.replace(/\D/g, '')
         : null,
     });
+  }
+
+  updateAccount(request: UpdateAccountRequest): Observable<AuthUser> {
+    return this.http.patch<AuthUser>(`${this.baseUrl}/api/me/account`, {
+      name: request.name.trim(),
+      nationality: request.nationality,
+      phone: request.phone.replace(/\D/g, ''),
+      gender: request.gender,
+      birthDate: request.birthDate,
+      companyName: request.companyName?.trim() || null,
+      responsibleDocument: request.responsibleDocument
+        ? request.responsibleDocument.replace(/\D/g, '')
+        : null,
+    });
+  }
+
+  changePassword(request: ChangePasswordRequest): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/api/me/password`, request);
   }
 
   /** CPF/CNPJ são enviados apenas com dígitos; documento estrangeiro vai como digitado. */

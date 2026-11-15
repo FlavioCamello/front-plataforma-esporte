@@ -6,8 +6,11 @@ import { environment } from '../../../environments/environment';
 import {
   CreateEventRequest,
   EventDetail,
+  EventReadiness,
   ListMyEventsParams,
   PagedEventList,
+  PreviewLink,
+  PublicEventDetail,
   UpdateEventRequest,
 } from '../models/event.model';
 import { normalizeApiBaseUrl } from '../auth/api-base.util';
@@ -44,6 +47,30 @@ export class EventsApiService {
 
   getById(id: string): Observable<EventDetail> {
     return this.http.get<EventDetail>(`${this.baseUrl}${environment.eventsPath}/${id}`);
+  }
+
+  readiness(id: string): Observable<EventReadiness> {
+    return this.http.get<EventReadiness>(
+      `${this.baseUrl}${environment.eventsPath}/${id}/readiness`
+    );
+  }
+
+  /** UC-38 — página pública como o atleta verá, em qualquer status. */
+  preview(id: string): Observable<PublicEventDetail> {
+    return this.http.get<PublicEventDetail>(
+      `${this.baseUrl}${environment.eventsPath}/${id}/preview`
+    );
+  }
+
+  createPreviewLink(id: string): Observable<PreviewLink> {
+    return this.http.post<PreviewLink>(
+      `${this.baseUrl}${environment.eventsPath}/${id}/preview-link`,
+      {}
+    );
+  }
+
+  revokePreviewLink(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}${environment.eventsPath}/${id}/preview-link`);
   }
 
   update(id: string, request: UpdateEventRequest): Observable<EventDetail> {

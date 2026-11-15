@@ -15,6 +15,7 @@ import { GENDER_OPTIONS, NATIONALITY_OPTIONS } from '../../../core/auth/profile-
 import { cnpjValidator } from '../../../core/validators/cnpj.validator';
 import { cpfValidator } from '../../../core/validators/cpf.validator';
 import { passwordMatchValidator } from '../../../core/validators/password-match.validator';
+import { BrandMarkComponent } from '../../../shared/brand-mark/brand-mark.component';
 
 type PersonType = 'pf' | 'pj';
 
@@ -29,6 +30,7 @@ type PersonType = 'pf' | 'pj';
     MatFormFieldModule,
     MatInputModule,
     MatSelectModule,
+    BrandMarkComponent,
   ],
   templateUrl: './register-organizer.component.html',
   styleUrl: './register-organizer.component.scss',
