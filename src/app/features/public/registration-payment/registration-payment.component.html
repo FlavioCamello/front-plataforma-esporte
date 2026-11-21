@@ -29,17 +29,21 @@
     @if (phase() === 'pix') {
       <section class="pix" aria-live="polite">
         <h2>Pague com Pix</h2>
-        <p>A inscrição confirma sozinha assim que o pagamento cair.</p>
+        <p class="lead">
+          Abra o app do banco, escaneie o QR Code ou copie o código e pague
+          {{ item.priceSnapshot | currency: 'BRL' }}. A inscrição confirma sozinha
+          quando o pagamento cair.
+        </p>
         @if (qrImage()) {
           <img [src]="qrImage()" alt="QR Code do Pix" width="240" height="240" />
         }
         @if (qrCode()) {
-          <p class="code">{{ qrCode() }}</p>
-          <button type="button" mat-stroked-button (click)="copyPix()">
-            {{ copied() ? 'Código copiado' : 'Copiar código' }}
+          <p class="code" aria-label="Código Pix copia e cola">{{ qrCode() }}</p>
+          <button type="button" class="copy" (click)="copyPix()">
+            {{ copied() ? 'Código copiado' : 'Copiar código Pix' }}
           </button>
         } @else {
-          <p class="muted">Estamos aguardando a confirmação deste pagamento.</p>
+          <p class="wait">Estamos aguardando a confirmação deste pagamento.</p>
         }
       </section>
     }
