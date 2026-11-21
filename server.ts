@@ -17,6 +17,10 @@ export function app(): express.Express {
   server.set('view engine', 'html');
   server.set('views', browserDistFolder);
 
+  server.get('/', (_req, res) => {
+    res.redirect(302, '/e');
+  });
+
   // JS/CSS com hash podem ficar em cache. HTML não: o navegador guardaria a página
   // e depois pediria chunks que o deploy seguinte já removeu.
   server.get(
