@@ -1,4 +1,6 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
+import { Injectable, PLATFORM_ID, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { catchError } from 'rxjs/operators';
@@ -12,7 +14,7 @@ import { CompleteProfileRequest } from '../models/complete-profile.model';
 import { RegisterRequest } from '../models/register.model';
 import { AuthApiService } from './auth-api.service';
 import { findMockAccount, findMockAccountByToken } from './auth-mock.data';
-import { decodeJwtPayload } from './jwt.util';
+import { decodeJwtPayload, isAccessTokenExpired } from './jwt.util';
 import { buildGoogleLoginUrl } from './google-auth.util';
 import { TokenStorageService } from './token-storage.service';
 import {
@@ -20,6 +22,7 @@ import {
   USER_HOME_ROUTE,
   defaultHomeFor,
   isDefaultReturnUrl,
+  pathRequiresLogin,
 } from '../routing/app-routes';
 
 export { InvalidCredentialsError } from './auth.errors';
@@ -29,14 +32,18 @@ export class AuthService {
   private readonly tokenStorage = inject(TokenStorageService);
   private readonly authApi = inject(AuthApiService);
   private readonly router = inject(Router);
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   private readonly userSignal = signal<AuthUser | null>(null);
+  private redirectingToLogin = false;
 
   readonly currentUser = this.userSignal.asReadonly();
 
-  readonly isAuthenticated = computed(
-    () => this.userSignal() !== null || !!this.tokenStorage.getAccessToken()
-  );
+  readonly isAuthenticated = computed(() => {
+    this.userSignal();
+    const token = this.tokenStorage.getAccessToken();
+    return !!token && !isAccessTokenExpired(token);
+  });
 
   /** Perfil completo o suficiente para inscrição/criação de evento. */
   readonly profileComplete = computed(() => this.userSignal()?.profileComplete ?? false);
@@ -46,7 +53,38 @@ export class AuthService {
     if (!token) {
       return;
     }
+    if (isAccessTokenExpired(token)) {
+      this.endExpiredSession(false);
+      return;
+    }
     await this.hydrateUserFromToken(token);
+  }
+
+  /**
+   * Sessão rejeitada ou vencida. Limpa o token e, numa tela que exige login,
+   * manda o usuário entrar de novo no ponto em que estava.
+   */
+  endExpiredSession(redirectToLogin = true): void {
+    this.tokenStorage.clearAccessToken();
+    this.userSignal.set(null);
+    if (!redirectToLogin || !this.isBrowser || this.redirectingToLogin) {
+      return;
+    }
+
+    const path = this.router.url.split('?')[0];
+    const locationPath = window.location.pathname;
+    const needsLogin = pathRequiresLogin(path) || pathRequiresLogin(locationPath);
+    if (!needsLogin || locationPath.startsWith('/auth/login')) {
+      return;
+    }
+
+    const returnUrl = `${locationPath}${window.location.search}`;
+    this.redirectingToLogin = true;
+    void this.router
+      .navigate(['/auth/login'], { queryParams: { returnUrl } })
+      .finally(() => {
+        this.redirectingToLogin = false;
+      });
   }
 
   loginWithGoogle(returnUrl = USER_HOME_ROUTE): void {
@@ -175,14 +213,19 @@ export class AuthService {
     try {
       const user = await firstValueFrom(this.authApi.getCurrentUser());
       this.userSignal.set(user);
-    } catch {
-      const user = this.userFromJwt(token);
-      if (user) {
-        this.userSignal.set(user);
-      } else {
-        this.tokenStorage.clearAccessToken();
-        this.userSignal.set(null);
+    } catch (error) {
+      if (error instanceof HttpErrorResponse && (error.status === 401 || error.status === 403)) {
+        this.endExpiredSession();
+        return;
       }
+
+      const user = this.userFromJwt(token);
+      if (user && !isAccessTokenExpired(token)) {
+        this.userSignal.set(user);
+        return;
+      }
+
+      this.endExpiredSession(false);
     }
   }
 

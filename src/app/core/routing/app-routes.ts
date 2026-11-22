@@ -15,6 +15,15 @@ export function defaultHomeFor(_user?: AuthUser | null): string {
  * Indica se o returnUrl é genérico e deve ser trocado pelo default do perfil.
  * Paths explícitos (`/e/:slug`, `/home/inscricoes`, etc.) são preservados.
  */
+/** Páginas que só funcionam com sessão. A vitrine e o detalhe do evento ficam de fora. */
+export function pathRequiresLogin(path: string): boolean {
+  const clean = path.split('?')[0];
+  if (clean.startsWith('/home') || clean.startsWith('/auth/completar-perfil')) {
+    return true;
+  }
+  return /^\/e\/[^/]+\/(inscricao|pagamento)(\/|$)/.test(clean);
+}
+
 export function isDefaultReturnUrl(returnUrl: string | null | undefined): boolean {
   if (!returnUrl || returnUrl === '/') {
     return true;

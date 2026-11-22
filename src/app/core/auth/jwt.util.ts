@@ -5,6 +5,7 @@ interface JwtPayload {
   picture?: string;
   account_type?: string;
   profile_complete?: string;
+  exp?: number;
 }
 
 export function decodeJwtPayload(token: string): JwtPayload | null {
@@ -24,4 +25,13 @@ export function decodeJwtPayload(token: string): JwtPayload | null {
   } catch {
     return null;
   }
+}
+
+/** Token sem `exp` (mock de dev) não expira. Os demais vencem 30s antes do prazo. */
+export function isAccessTokenExpired(token: string, nowMs = Date.now()): boolean {
+  const exp = decodeJwtPayload(token)?.exp;
+  if (typeof exp !== 'number') {
+    return false;
+  }
+  return exp * 1000 <= nowMs + 30_000;
 }
